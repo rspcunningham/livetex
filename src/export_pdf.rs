@@ -1,5 +1,6 @@
 use crate::session_lifecycle::active_sessions_for_tex_file;
 use crate::session_store::{SessionStore, SessionSummary};
+use crate::ui;
 use anyhow::{Context, Result, bail};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -44,7 +45,7 @@ fn copy_session_pdf(session: &SessionSummary, tex_file: &Path) -> Result<()> {
     let destination_pdf = pdf_next_to_tex_file(tex_file)?;
     copy_atomically(source_pdf, &destination_pdf)?;
 
-    println!("Exported {:?}", destination_pdf);
+    ui::exported_pdf(&destination_pdf);
 
     Ok(())
 }
@@ -73,7 +74,7 @@ fn compile_directly(tex_file: &Path) -> Result<()> {
         bail!("latexmk failed with status: {status}");
     }
 
-    println!("Exported {:?}", pdf_next_to_tex_file(tex_file)?);
+    ui::exported_pdf(&pdf_next_to_tex_file(tex_file)?);
 
     Ok(())
 }

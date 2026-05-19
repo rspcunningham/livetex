@@ -1,5 +1,6 @@
 use crate::process::pid_exists;
 use crate::session_store::{Session, SessionStore};
+use crate::ui;
 use anyhow::{Context, Result, bail};
 use std::collections::HashSet;
 use std::fs::OpenOptions;
@@ -78,33 +79,25 @@ pub fn start(tex_file: PathBuf) -> Result<()> {
                 Some(pid)
             }
             Ok(None) => {
-                eprintln!("Started latexmk, but could not determine Skim PID.");
+                ui::warning("Started latexmk, but could not determine Skim PID.");
                 None
             }
             Err(error) => {
-                eprintln!("Started latexmk, but could not open Skim: {error:#}");
+                ui::warning(format!(
+                    "Started latexmk, but could not open Skim: {error:#}"
+                ));
                 None
             }
         }
     } else {
-        eprintln!(
+        ui::warning(format!(
             "Started latexmk, but {:?} was not created within 30 seconds. See logs for details.",
             session.pdf_file
-        );
+        ));
         None
     };
 
-    println!("Started LiveTeX session");
-    println!("Session ID: {}", session.id);
-    println!("TeX file: {:?}", session.tex_file);
-    println!("PDF file: {:?}", session.pdf_file);
-    println!("Session directory: {:?}", session.session_dir);
-    println!("Log file: {:?}", session.log_path);
-    println!("latexmk PID: {}", latexmk_pid);
-
-    if let Some(skim_pid) = skim_pid {
-        println!("Skim PID: {}", skim_pid);
-    }
+    ui::started_session(&session, latexmk_pid, skim_pid);
 
     Ok(())
 }

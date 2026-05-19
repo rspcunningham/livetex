@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, bail};
+use clap::builder::styling::{AnsiColor, Styles};
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
@@ -9,14 +10,22 @@ mod session_picker;
 mod session_store;
 mod start;
 mod stop;
+mod ui;
 
-use session_lifecycle::{active_sessions, format_session_summary, is_active_session};
+use session_lifecycle::{active_sessions, is_active_session};
 use session_store::{SessionStore, SessionSummary};
+
+const HELP_TEMPLATE: &str = "\
+{before-help}{about-with-newline}
+? Usage › {usage}
+
+{all-args}{after-help}";
 
 #[derive(Debug, Parser)]
 #[command(name = "livetex")]
 #[command(about = "Live LaTeX compiler with elegant PDF serving")]
-
+#[command(styles = cli_styles())]
+#[command(help_template = HELP_TEMPLATE)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -24,16 +33,20 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    Start {
-        tex_file: PathBuf,
-    },
-    Stop {
-        tex_file: Option<PathBuf>,
-    },
-    Export {
-        tex_file: PathBuf,
-    },
+    #[command(styles = cli_styles())]
+    #[command(help_template = HELP_TEMPLATE)]
+    Start { tex_file: PathBuf },
+    #[command(styles = cli_styles())]
+    #[command(help_template = HELP_TEMPLATE)]
+    Stop { tex_file: Option<PathBuf> },
+    #[command(styles = cli_styles())]
+    #[command(help_template = HELP_TEMPLATE)]
+    Export { tex_file: PathBuf },
+    #[command(styles = cli_styles())]
+    #[command(help_template = HELP_TEMPLATE)]
     List,
+    #[command(styles = cli_styles())]
+    #[command(help_template = HELP_TEMPLATE)]
     Logs {
         tex_file: PathBuf,
 
@@ -42,7 +55,14 @@ enum Command {
     },
 }
 
-fn main() -> Result<()> {
+fn main() {
+    if let Err(error) = run() {
+        ui::error(&error);
+        std::process::exit(1);
+    }
+}
+
+fn run() -> Result<()> {
     let cli = Cli::parse();
     let store = SessionStore::livetex_cache();
 
@@ -52,22 +72,17 @@ fn main() -> Result<()> {
         Command::Export { tex_file } => export_pdf::export(tex_file)?,
         Command::List => {
             let sessions = active_sessions(&store)?;
-
-            if sessions.is_empty() {
-                println!("No active sessions.");
-            }
-
-            for session in sessions {
-                println!("{}", format_session_summary(&session));
-            }
+            ui::session_list(&sessions);
         }
         Command::Logs { tex_file, lines } => {
             let sessions = store.sessions_for_tex_file(&tex_file)?;
             let session = select_session_for_logs(sessions, &tex_file)?;
-            let log_path = session.log_path;
+            let log_path = session.log_path.clone();
             let contents = std::fs::read_to_string(&log_path)
                 .with_context(|| format!("could not read log file: {:?}", log_path))?;
             let log_lines: Vec<&str> = contents.lines().rev().take(lines).collect();
+
+            ui::logs_header(&session, lines);
 
             for line in log_lines.iter().rev() {
                 println!("{line}");
@@ -76,6 +91,17 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn cli_styles() -> Styles {
+    Styles::styled()
+        .header(AnsiColor::Yellow.on_default().bold())
+        .usage(AnsiColor::Yellow.on_default().bold())
+        .literal(AnsiColor::Green.on_default().bold())
+        .placeholder(AnsiColor::Cyan.on_default())
+        .error(AnsiColor::Red.on_default().bold())
+        .valid(AnsiColor::Green.on_default())
+        .invalid(AnsiColor::Yellow.on_default())
 }
 
 fn select_session_for_logs(

@@ -1,5 +1,6 @@
 use crate::process::{pid_exists, terminate_process, terminate_process_group};
 use crate::session_store::{SessionStore, SessionSummary};
+use crate::ui;
 use anyhow::Result;
 use std::path::Path;
 
@@ -35,57 +36,22 @@ pub fn stop_session(store: &SessionStore, session: &SessionSummary) -> Result<()
                 terminate_process(latexmk_pid)?;
             }
 
-            println!("stopped latexmk process {latexmk_pid}");
+            ui::stopped_latexmk(latexmk_pid);
         }
     }
 
     if let Some(skim_pid) = session.skim_pid {
         if pid_exists(skim_pid) {
             terminate_process(skim_pid)?;
-            println!("stopped Skim process {skim_pid}");
+            ui::stopped_skim(skim_pid);
         }
     }
 
     store.stop_session(&session.id)?;
 
-    println!("stopped session {}", session.id);
+    ui::stopped_session(&session.id);
 
     Ok(())
-}
-
-pub fn format_session_summary(session: &SessionSummary) -> String {
-    let tex_file = session
-        .tex_file
-        .as_ref()
-        .map(|path| path.display().to_string())
-        .unwrap_or_else(|| "<unknown>".to_string());
-
-    let pdf_file = session
-        .pdf_file
-        .as_ref()
-        .map(|path| path.display().to_string())
-        .unwrap_or_else(|| "<unknown>".to_string());
-
-    let latexmk_pid = session
-        .latexmk_pid
-        .map(|pid| pid.to_string())
-        .unwrap_or_else(|| "<unknown>".to_string());
-
-    let skim_pid = session
-        .skim_pid
-        .map(|pid| pid.to_string())
-        .unwrap_or_else(|| "<unknown>".to_string());
-
-    format!(
-        "{}\n  tex: {}\n  pdf: {}\n  latexmk pid: {}\n  skim pid: {}\n  dir: {:?}\n  log: {:?}",
-        session.id,
-        tex_file,
-        pdf_file,
-        latexmk_pid,
-        skim_pid,
-        session.session_dir,
-        session.log_path
-    )
 }
 
 pub fn format_session_picker_label(session: &SessionSummary) -> String {
@@ -110,24 +76,6 @@ pub fn format_session_picker_label(session: &SessionSummary) -> String {
 mod tests {
     use super::*;
     use std::path::PathBuf;
-
-    #[test]
-    fn formats_missing_session_fields_as_unknown() {
-        let session = SessionSummary {
-            id: "session-id".to_string(),
-            tex_file: None,
-            pdf_file: None,
-            latexmk_pid: None,
-            skim_pid: None,
-            session_dir: PathBuf::from("/tmp/livetex/session-id"),
-            log_path: PathBuf::from("/tmp/livetex/session-id/latexmk.log"),
-        };
-
-        assert_eq!(
-            format_session_summary(&session),
-            "session-id\n  tex: <unknown>\n  pdf: <unknown>\n  latexmk pid: <unknown>\n  skim pid: <unknown>\n  dir: \"/tmp/livetex/session-id\"\n  log: \"/tmp/livetex/session-id/latexmk.log\""
-        );
-    }
 
     #[test]
     fn formats_picker_label_on_one_line() {
