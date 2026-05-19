@@ -1,4 +1,4 @@
-use crate::process::pid_exists;
+use crate::session_lifecycle::active_sessions_for_tex_file;
 use crate::session_store::{SessionStore, SessionSummary};
 use anyhow::{Context, Result, bail};
 use std::fs;
@@ -25,17 +25,6 @@ pub fn export(tex_file: PathBuf) -> Result<()> {
     }
 
     Ok(())
-}
-
-fn active_sessions_for_tex_file(
-    store: &SessionStore,
-    tex_file: &Path,
-) -> Result<Vec<SessionSummary>> {
-    Ok(store
-        .sessions_for_tex_file(tex_file)?
-        .into_iter()
-        .filter(|session| session.latexmk_pid.is_some_and(pid_exists))
-        .collect())
 }
 
 fn copy_session_pdf(session: &SessionSummary, tex_file: &Path) -> Result<()> {

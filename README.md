@@ -27,8 +27,8 @@ livetex start <path_to_latex_file>
 livetex logs <path_to_latex_file> --lines <num_lines>
 # shows the logs for the live preview of the latex file
 
-livetex stop <path_to_latex_file>
-# stops the live preview of the latex file
+livetex stop [path_to_latex_file]
+# stops the live preview of the latex file, or opens a selector when no path is given
 
 livetex list
 # lists all running live previews
@@ -38,7 +38,7 @@ livetex export <path_to_latex_file>
 ```
 
 ## Next steps
-- [ ] flow to select a running preview to stop without specifying the path
+- [x] use arrow keys to navigate the list of running previews and select one to stop
 - [ ] last-turn-only log parsing
 - [ ] right click on file to open
 - [ ] kill the compile when Skim window is closed

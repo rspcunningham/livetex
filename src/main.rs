@@ -4,11 +4,13 @@ use std::path::PathBuf;
 
 mod export_pdf;
 mod process;
+mod session_lifecycle;
+mod session_picker;
 mod session_store;
 mod start;
 mod stop;
 
-use process::pid_exists;
+use session_lifecycle::{active_sessions, format_session_summary, is_active_session};
 use session_store::{SessionStore, SessionSummary};
 
 #[derive(Debug, Parser)]
@@ -26,7 +28,7 @@ enum Command {
         tex_file: PathBuf,
     },
     Stop {
-        tex_file: PathBuf,
+        tex_file: Option<PathBuf>,
     },
     Export {
         tex_file: PathBuf,
@@ -49,49 +51,14 @@ fn main() -> Result<()> {
         Command::Stop { tex_file } => stop::stop(tex_file)?,
         Command::Export { tex_file } => export_pdf::export(tex_file)?,
         Command::List => {
-            let sessions: Vec<_> = store
-                .list_sessions()?
-                .into_iter()
-                .filter(|session| session.latexmk_pid.is_some_and(pid_exists))
-                .collect();
+            let sessions = active_sessions(&store)?;
 
             if sessions.is_empty() {
                 println!("No active sessions.");
             }
 
             for session in sessions {
-                let tex_file = session
-                    .tex_file
-                    .as_ref()
-                    .map(|path| path.display().to_string())
-                    .unwrap_or_else(|| "<unknown>".to_string());
-
-                let pdf_file = session
-                    .pdf_file
-                    .as_ref()
-                    .map(|path| path.display().to_string())
-                    .unwrap_or_else(|| "<unknown>".to_string());
-
-                let latexmk_pid = session
-                    .latexmk_pid
-                    .map(|pid| pid.to_string())
-                    .unwrap_or_else(|| "<unknown>".to_string());
-
-                let skim_pid = session
-                    .skim_pid
-                    .map(|pid| pid.to_string())
-                    .unwrap_or_else(|| "<unknown>".to_string());
-
-                println!(
-                    "{}\n  tex: {}\n  pdf: {}\n  latexmk pid: {}\n  skim pid: {}\n  dir: {:?}\n  log: {:?}",
-                    session.id,
-                    tex_file,
-                    pdf_file,
-                    latexmk_pid,
-                    skim_pid,
-                    session.session_dir,
-                    session.log_path
-                );
+                println!("{}", format_session_summary(&session));
             }
         }
         Command::Logs { tex_file, lines } => {
@@ -121,7 +88,7 @@ fn select_session_for_logs(
 
     let active_sessions: Vec<_> = sessions
         .iter()
-        .filter(|session| session.latexmk_pid.is_some_and(pid_exists))
+        .filter(|session| is_active_session(session))
         .cloned()
         .collect();
 
