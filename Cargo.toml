@@ -1,0 +1,11 @@
+[package]
+name = "livetex"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.102"
+clap = { version = "4.6.1", features = ["derive"] }
+dirs = "6.0.0"
+nix = { version = "0.31.3", features = ["signal", "process"] }
+uuid = { version = "1.23.1", features = ["v4"] }
