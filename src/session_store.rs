@@ -20,8 +20,6 @@ pub struct Session {
     pub pdf_file: PathBuf,
     pub session_dir: PathBuf,
     pub log_path: PathBuf,
-    pub latexmk_pid_path: PathBuf,
-    pub skim_pid_path: PathBuf,
 }
 
 #[derive(Debug, Clone)]
@@ -43,13 +41,10 @@ impl SessionStore {
     pub fn livetex_cache() -> Self {
         let root_dir = dirs::cache_dir()
             .unwrap_or_else(std::env::temp_dir)
-            .join("livetex");
+            .join("livetex")
+            .join("sessions");
 
         Self::new(root_dir)
-    }
-
-    pub fn root_dir(&self) -> &Path {
-        &self.root_dir
     }
 
     pub fn start_session(&self, tex_file: PathBuf) -> Result<Session> {
@@ -69,8 +64,6 @@ impl SessionStore {
         let session_dir = self.root_dir.join(&id);
         let pdf_file = pdf_path_for_tex_file(&session_dir, &tex_file)?;
         let log_path = session_dir.join(LOG_FILE_NAME);
-        let latexmk_pid_path = session_dir.join(LATEXMK_PID_FILE_NAME);
-        let skim_pid_path = session_dir.join(SKIM_PID_FILE_NAME);
 
         fs::create_dir_all(&session_dir)
             .with_context(|| format!("Could not create session directory: {:?}", session_dir))?;
@@ -86,8 +79,6 @@ impl SessionStore {
             pdf_file,
             session_dir,
             log_path,
-            latexmk_pid_path,
-            skim_pid_path,
         })
     }
 
@@ -184,10 +175,6 @@ impl SessionStore {
     pub fn session_dir(&self, session_id: &str) -> Result<PathBuf> {
         validate_session_id(session_id)?;
         Ok(self.root_dir.join(session_id))
-    }
-
-    pub fn log_path(&self, session_id: &str) -> Result<PathBuf> {
-        Ok(self.session_dir(session_id)?.join(LOG_FILE_NAME))
     }
 
     pub fn latexmk_pid_path(&self, session_id: &str) -> Result<PathBuf> {

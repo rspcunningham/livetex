@@ -1,8 +1,6 @@
+use crate::process::{pid_exists, terminate_process, terminate_process_group};
 use crate::session_store::SessionStore;
 use anyhow::{Result, bail};
-use nix::errno::Errno;
-use nix::sys::signal::{Signal, kill};
-use nix::unistd::Pid;
 use std::path::PathBuf;
 
 pub fn stop(tex_file: PathBuf) -> Result<()> {
@@ -14,29 +12,29 @@ pub fn stop(tex_file: PathBuf) -> Result<()> {
     }
 
     for session in sessions {
-        let worker_pid = session
-            .worker_pid
-            .ok_or_else(|| anyhow::anyhow!("Session {} has no worker PID", session.id))?;
+        if let Some(latexmk_pid) = session.latexmk_pid {
+            if pid_exists(latexmk_pid) {
+                terminate_process_group(latexmk_pid)?;
 
-        kill_worker(worker_pid)?;
+                if pid_exists(latexmk_pid) {
+                    terminate_process(latexmk_pid)?;
+                }
+
+                println!("stopped latexmk process {latexmk_pid}");
+            }
+        }
+
+        if let Some(skim_pid) = session.skim_pid {
+            if pid_exists(skim_pid) {
+                terminate_process(skim_pid)?;
+                println!("stopped Skim process {skim_pid}");
+            }
+        }
+
         store.stop_session(&session.id)?;
 
         println!("stopped session {}", session.id);
-        println!("stopped worker process {worker_pid}");
     }
 
     Ok(())
-}
-
-fn kill_worker(worker_pid: u32) -> Result<()> {
-    if worker_pid > i32::MAX as u32 {
-        bail!("Invalid worker PID: {}", worker_pid);
-    }
-
-    let pid = Pid::from_raw(worker_pid as i32);
-
-    match kill(pid, Signal::SIGTERM) {
-        Ok(()) | Err(Errno::ESRCH) => Ok(()),
-        Err(error) => bail!("Could not stop worker process {}: {}", worker_pid, error),
-    }
 }
