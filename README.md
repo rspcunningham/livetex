@@ -55,7 +55,7 @@ livetex --verbose <command>
 - [x] use arrow keys to navigate the list of running previews and select one to stop
 - [x] last-turn-only log parsing
 - [ ] right click on file to start a new preview session with it
-- [ ] kill the compile when Skim window is closed
+- [x] kill the compile when Skim window is closed
 - [ ] use AppleScript to control Skim windows directly
 - [x] installation flow with prerequisite fixing and Skim default setup
 - [x] use the same interactive menu in 'export' as in 'stop'

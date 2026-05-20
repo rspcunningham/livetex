@@ -1,0 +1,44 @@
+use crate::process::pid_exists;
+use crate::session_lifecycle::stop_compile_session;
+use crate::session_store::{SessionStore, SessionSummary};
+use crate::skim;
+use anyhow::Result;
+use std::thread;
+use std::time::Duration;
+
+const POLL_INTERVAL: Duration = Duration::from_secs(2);
+
+pub fn monitor(session_id: String, verbose: bool) -> Result<()> {
+    let store = SessionStore::livetex_cache();
+
+    loop {
+        let Some(session) = store.session(&session_id)? else {
+            return Ok(());
+        };
+
+        if !session.latexmk_pid.is_some_and(pid_exists) {
+            store.stop_session(&session.id)?;
+            return Ok(());
+        }
+
+        if let Some(document_path) = preview_document_path(&session) {
+            match skim::document_is_open(&document_path) {
+                Ok(true) => {}
+                Ok(false) => {
+                    stop_compile_session(&store, &session, verbose)?;
+                    return Ok(());
+                }
+                Err(_) => {}
+            }
+        }
+
+        thread::sleep(POLL_INTERVAL);
+    }
+}
+
+fn preview_document_path(session: &SessionSummary) -> Option<std::path::PathBuf> {
+    session
+        .skim_document_path
+        .clone()
+        .or_else(|| session.pdf_file.clone())
+}

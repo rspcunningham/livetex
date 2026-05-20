@@ -64,6 +64,10 @@ return documentPaths as text
 }
 
 pub fn document_is_open(pdf_file: &Path) -> Result<bool> {
+    if !is_running()? {
+        return Ok(false);
+    }
+
     let pdf_file = pdf_file
         .canonicalize()
         .unwrap_or_else(|_| pdf_file.to_path_buf());
@@ -71,6 +75,10 @@ pub fn document_is_open(pdf_file: &Path) -> Result<bool> {
     Ok(open_document_paths()?
         .into_iter()
         .any(|document_path| document_path.canonicalize().unwrap_or(document_path) == pdf_file))
+}
+
+fn is_running() -> Result<bool> {
+    Ok(!pids()?.is_empty())
 }
 
 fn pids() -> Result<Vec<u32>> {

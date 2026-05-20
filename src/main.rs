@@ -7,6 +7,7 @@ mod doctor;
 mod export_pdf;
 mod logs;
 mod manage;
+mod monitor;
 mod process;
 mod session_lifecycle;
 mod session_picker;
@@ -71,6 +72,10 @@ enum Command {
         #[arg(short = 't', long = "turns", default_value_t = 1)]
         turns: usize,
     },
+    #[command(hide = true)]
+    #[command(styles = cli_styles())]
+    #[command(help_template = HELP_TEMPLATE)]
+    Monitor { session_id: String },
 }
 
 fn main() {
@@ -97,6 +102,7 @@ fn run() -> Result<()> {
         Command::Doctor => doctor::doctor(verbose)?,
         Command::Setup => setup::setup(verbose)?,
         Command::Logs { tex_file, turns } => logs::show(tex_file, turns, verbose)?,
+        Command::Monitor { session_id } => monitor::monitor(session_id, verbose)?,
     }
 
     Ok(())

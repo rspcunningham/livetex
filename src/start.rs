@@ -80,6 +80,12 @@ pub fn start(tex_file: PathBuf, verbose: bool) -> Result<()> {
                     ui::warning("Opened PDF in Skim, but could not confirm the document window.");
                 }
 
+                if let Err(error) = spawn_monitor(&session.id) {
+                    ui::warning(format!(
+                        "Started compiler, but could not monitor Skim: {error:#}"
+                    ));
+                }
+
                 match preview.app_pid {
                     Some(pid) => {
                         store.record_skim_pid(&session.id, pid)?;
@@ -106,6 +112,19 @@ pub fn start(tex_file: PathBuf, verbose: bool) -> Result<()> {
     };
 
     ui::started_session(&session, latexmk_pid, skim_pid, verbose);
+
+    Ok(())
+}
+
+fn spawn_monitor(session_id: &str) -> Result<()> {
+    Command::new(std::env::current_exe().with_context(|| "Could not determine LiveTex binary")?)
+        .arg("monitor")
+        .arg(session_id)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .with_context(|| "Could not start LiveTex monitor")?;
 
     Ok(())
 }

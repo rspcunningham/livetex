@@ -28,19 +28,7 @@ pub fn is_active_session(session: &SessionSummary) -> bool {
 }
 
 pub fn stop_session(store: &SessionStore, session: &SessionSummary, verbose: bool) -> Result<()> {
-    if let Some(latexmk_pid) = session.latexmk_pid {
-        if pid_exists(latexmk_pid) {
-            terminate_process_group(latexmk_pid)?;
-
-            if pid_exists(latexmk_pid) {
-                terminate_process(latexmk_pid)?;
-            }
-
-            if verbose {
-                ui::stopped_latexmk(latexmk_pid);
-            }
-        }
-    }
+    terminate_compile_process(session, verbose)?;
 
     if let Some(skim_pid) = session.skim_pid {
         if pid_exists(skim_pid) {
@@ -55,6 +43,39 @@ pub fn stop_session(store: &SessionStore, session: &SessionSummary, verbose: boo
     store.stop_session(&session.id)?;
 
     ui::stopped_session(session, verbose);
+
+    Ok(())
+}
+
+pub fn stop_compile_session(
+    store: &SessionStore,
+    session: &SessionSummary,
+    verbose: bool,
+) -> Result<()> {
+    terminate_compile_process(session, verbose)?;
+    store.stop_session(&session.id)?;
+
+    if verbose {
+        ui::stopped_session(session, verbose);
+    }
+
+    Ok(())
+}
+
+fn terminate_compile_process(session: &SessionSummary, verbose: bool) -> Result<()> {
+    if let Some(latexmk_pid) = session.latexmk_pid {
+        if pid_exists(latexmk_pid) {
+            terminate_process_group(latexmk_pid)?;
+
+            if pid_exists(latexmk_pid) {
+                terminate_process(latexmk_pid)?;
+            }
+
+            if verbose {
+                ui::stopped_latexmk(latexmk_pid);
+            }
+        }
+    }
 
     Ok(())
 }

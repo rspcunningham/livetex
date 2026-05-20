@@ -175,6 +175,15 @@ impl SessionStore {
         Ok(sessions)
     }
 
+    pub fn session(&self, session_id: &str) -> Result<Option<SessionSummary>> {
+        validate_session_id(session_id)?;
+
+        Ok(self
+            .list_sessions()?
+            .into_iter()
+            .find(|session| session.id == session_id))
+    }
+
     pub fn sessions_for_tex_file(&self, tex_file: &Path) -> Result<Vec<SessionSummary>> {
         let tex_file = tex_file
             .canonicalize()
