@@ -47,6 +47,10 @@ impl SessionStore {
         Self::new(root_dir)
     }
 
+    pub fn root_dir(&self) -> PathBuf {
+        self.root_dir.clone()
+    }
+
     pub fn start_session(&self, tex_file: PathBuf) -> Result<Session> {
         if !tex_file.exists() {
             bail!("File not found: {:?}", tex_file);

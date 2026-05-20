@@ -3,6 +3,7 @@ use clap::builder::styling::{AnsiColor, Styles};
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
+mod doctor;
 mod export_pdf;
 mod logs;
 mod process;
@@ -51,6 +52,9 @@ enum Command {
     List,
     #[command(styles = cli_styles())]
     #[command(help_template = HELP_TEMPLATE)]
+    Doctor,
+    #[command(styles = cli_styles())]
+    #[command(help_template = HELP_TEMPLATE)]
     Logs {
         tex_file: PathBuf,
 
@@ -79,6 +83,7 @@ fn run() -> Result<()> {
             let sessions = active_sessions(&store)?;
             ui::session_list(&sessions, verbose);
         }
+        Command::Doctor => doctor::doctor(verbose)?,
         Command::Logs { tex_file, turns } => logs::show(tex_file, turns, verbose)?,
     }
 
