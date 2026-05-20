@@ -1,4 +1,5 @@
 use crate::session_lifecycle::active_sessions_for_tex_file;
+use crate::session_picker::select_active_session_with_prompt;
 use crate::session_store::{SessionStore, SessionSummary};
 use crate::ui;
 use anyhow::{Context, Result, bail};
@@ -6,10 +7,15 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-pub fn export(tex_file: PathBuf, verbose: bool) -> Result<()> {
+pub fn export(tex_file: Option<PathBuf>, verbose: bool) -> Result<()> {
+    let store = SessionStore::livetex_cache();
+
+    let Some(tex_file) = tex_file else {
+        return export_selected_session(&store, verbose);
+    };
+
     validate_tex_file(&tex_file)?;
 
-    let store = SessionStore::livetex_cache();
     let canonical_tex_file = tex_file
         .canonicalize()
         .with_context(|| format!("Could not resolve path: {:?}", tex_file))?;
@@ -26,6 +32,25 @@ pub fn export(tex_file: PathBuf, verbose: bool) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn export_selected_session(store: &SessionStore, verbose: bool) -> Result<()> {
+    let Some(session) = select_active_session_with_prompt(
+        store,
+        verbose,
+        "Export which LiveTeX session?",
+        "pass a .tex file to `livetex export <path_to_latex_file>`",
+    )?
+    else {
+        return Ok(());
+    };
+
+    let tex_file = session
+        .tex_file
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("Session {} has no .tex path", session.id))?;
+
+    copy_session_pdf(&session, tex_file, verbose)
 }
 
 fn copy_session_pdf(session: &SessionSummary, tex_file: &Path, verbose: bool) -> Result<()> {

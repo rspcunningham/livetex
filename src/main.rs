@@ -45,7 +45,7 @@ enum Command {
     Stop { tex_file: Option<PathBuf> },
     #[command(styles = cli_styles())]
     #[command(help_template = HELP_TEMPLATE)]
-    Export { tex_file: PathBuf },
+    Export { tex_file: Option<PathBuf> },
     #[command(styles = cli_styles())]
     #[command(help_template = HELP_TEMPLATE)]
     List,
