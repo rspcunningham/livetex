@@ -1,13 +1,10 @@
 use crate::session_store::SessionStore;
+use crate::skim_defaults;
 use crate::ui;
 use anyhow::{Context, Result, bail};
 use console::style;
 use std::fs;
 use std::process::{Command, Stdio};
-
-const SKIM_BUNDLE_ID: &str = "net.sourceforge.skim-app.skim";
-const SKIM_AUTO_CHECK_KEY: &str = "SKAutoCheckFileUpdate";
-const SKIM_AUTO_RELOAD_KEY: &str = "SKAutoReloadFileUpdate";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CheckLevel {
@@ -93,8 +90,8 @@ fn run_checks() -> Vec<Check> {
         check_command("defaults", CheckLevel::Recommended),
         check_command("osascript", CheckLevel::Recommended),
         check_skim_app(),
-        check_skim_default(SKIM_AUTO_CHECK_KEY),
-        check_skim_default(SKIM_AUTO_RELOAD_KEY),
+        check_skim_default(skim_defaults::AUTO_CHECK_KEY),
+        check_skim_default(skim_defaults::AUTO_RELOAD_KEY),
         check_cache_dir(),
     ]
 }
@@ -144,24 +141,15 @@ fn check_skim_app() -> Check {
 }
 
 fn check_skim_default(key: &'static str) -> Check {
-    let output = Command::new("defaults")
-        .arg("read")
-        .arg(SKIM_BUNDLE_ID)
-        .arg(key)
-        .stdin(Stdio::null())
-        .output();
-
-    match output {
-        Ok(output) if output.status.success() => {
-            let value = String::from_utf8_lossy(&output.stdout);
-
-            if skim_default_is_enabled(&value) {
+    match skim_defaults::read(key) {
+        Ok(Some(value)) => {
+            if skim_defaults::is_enabled(&value) {
                 Check::pass(CheckLevel::Recommended, key, "enabled")
             } else {
                 Check::warn(CheckLevel::Recommended, key, "disabled")
             }
         }
-        Ok(_) => Check::warn(CheckLevel::Recommended, key, "not set"),
+        Ok(None) => Check::warn(CheckLevel::Recommended, key, "not set"),
         Err(error) => Check::warn(
             CheckLevel::Recommended,
             key,
@@ -200,13 +188,6 @@ fn which(command: &str) -> Result<Option<String>> {
     Ok((!path.is_empty()).then_some(path))
 }
 
-fn skim_default_is_enabled(value: &str) -> bool {
-    matches!(
-        value.trim().to_ascii_lowercase().as_str(),
-        "1" | "true" | "yes"
-    )
-}
-
 fn print_check(check: &Check, verbose: bool) {
     let icon = match check.state {
         CheckState::Pass => style("✔").green(),
@@ -223,24 +204,5 @@ fn print_check(check: &Check, verbose: bool) {
 
     if verbose || check.state != CheckState::Pass {
         ui::detail("detail", &check.detail);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parses_enabled_skim_defaults() {
-        assert!(skim_default_is_enabled("1\n"));
-        assert!(skim_default_is_enabled("true"));
-        assert!(skim_default_is_enabled("YES"));
-    }
-
-    #[test]
-    fn parses_disabled_skim_defaults() {
-        assert!(!skim_default_is_enabled("0\n"));
-        assert!(!skim_default_is_enabled("false"));
-        assert!(!skim_default_is_enabled(""));
     }
 }

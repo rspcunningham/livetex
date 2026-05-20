@@ -10,7 +10,9 @@ mod process;
 mod session_lifecycle;
 mod session_picker;
 mod session_store;
+mod setup;
 mod skim;
+mod skim_defaults;
 mod start;
 mod stop;
 mod ui;
@@ -56,6 +58,9 @@ enum Command {
     Doctor,
     #[command(styles = cli_styles())]
     #[command(help_template = HELP_TEMPLATE)]
+    Setup,
+    #[command(styles = cli_styles())]
+    #[command(help_template = HELP_TEMPLATE)]
     Logs {
         tex_file: PathBuf,
 
@@ -85,6 +90,7 @@ fn run() -> Result<()> {
             ui::session_list(&sessions, verbose);
         }
         Command::Doctor => doctor::doctor(verbose)?,
+        Command::Setup => setup::setup(verbose)?,
         Command::Logs { tex_file, turns } => logs::show(tex_file, turns, verbose)?,
     }
 

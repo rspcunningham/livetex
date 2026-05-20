@@ -4,18 +4,17 @@ Handy CLI tool for live latex editing
 
 ## Requirements
 
-- latexmk (`brew install latexmk`)
-- Skim (`brew install skim`)
+- TeX Live (`brew install texlive`)
+- Skim (`brew install --cask skim`)
 
 ## Installation
 
 ```
 git clone https://github.com/rspcunningham/livetex
 cd livetex
-cargo install --path .
-
-defaults write net.sourceforge.skim-app.skim SKAutoCheckFileUpdate -bool true
-defaults write net.sourceforge.skim-app.skim SKAutoReloadFileUpdate -bool true
+./install.sh
+# or install Homebrew dependencies too:
+./install.sh --with-deps
 ```
 
 ## Usage
@@ -42,6 +41,9 @@ livetex export [path_to_latex_file]
 livetex doctor
 # checks prerequisites and Skim defaults
 
+livetex setup
+# sets Skim defaults
+
 livetex --verbose <command>
 # shows session IDs, process IDs, cache directories, PDF paths, and log paths
 ```
@@ -52,6 +54,6 @@ livetex --verbose <command>
 - [ ] right click on file to start a new preview session with it
 - [ ] kill the compile when Skim window is closed
 - [ ] use AppleScript to control Skim windows directly
-- [ ] installation flow with prerequisite fixing and Skim default setup
+- [x] installation flow with prerequisite fixing and Skim default setup
 - [x] use the same interactive menu in 'export' as in 'stop'
 - [ ] homogenize the cli into one workflow supporting list, stop, and export -- and maybe start
