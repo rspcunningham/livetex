@@ -111,11 +111,7 @@ fn remove_stale_sessions_or_fail_if_running(
                 let tex_file = session.tex_file.unwrap_or_else(|| tex_file.to_path_buf());
 
                 if verbose {
-                    bail!(
-                        "Active session already exists for {:?} with latexmk PID {}",
-                        tex_file,
-                        pid
-                    );
+                    bail!("Active session already exists for {tex_file:?} with latexmk PID {pid}");
                 }
 
                 bail!(

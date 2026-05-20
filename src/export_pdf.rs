@@ -18,7 +18,7 @@ pub fn export(tex_file: Option<PathBuf>, verbose: bool) -> Result<()> {
 
     let canonical_tex_file = tex_file
         .canonicalize()
-        .with_context(|| format!("Could not resolve path: {:?}", tex_file))?;
+        .with_context(|| format!("Could not resolve path: {tex_file:?}"))?;
 
     let active_sessions = active_sessions_for_tex_file(&store, &canonical_tex_file)?;
 
@@ -26,8 +26,7 @@ pub fn export(tex_file: Option<PathBuf>, verbose: bool) -> Result<()> {
         0 => compile_directly(&canonical_tex_file, verbose)?,
         1 => copy_session_pdf(&active_sessions[0], &canonical_tex_file, verbose)?,
         _ => bail!(
-            "Multiple active sessions found for {:?}; stop duplicate sessions before exporting",
-            canonical_tex_file
+            "Multiple active sessions found for {canonical_tex_file:?}; stop duplicate sessions before exporting"
         ),
     }
 
@@ -78,10 +77,10 @@ fn copy_session_pdf(session: &SessionSummary, tex_file: &Path, verbose: bool) ->
 fn compile_directly(tex_file: &Path, verbose: bool) -> Result<()> {
     let workdir = tex_file
         .parent()
-        .with_context(|| format!("Could not determine workdir for {:?}", tex_file))?;
+        .with_context(|| format!("Could not determine workdir for {tex_file:?}"))?;
     let tex_file_name = tex_file
         .file_name()
-        .with_context(|| format!("Could not determine file name for {:?}", tex_file))?;
+        .with_context(|| format!("Could not determine file name for {tex_file:?}"))?;
 
     let mut command = Command::new("latexmk");
     command
@@ -121,7 +120,7 @@ fn compile_directly(tex_file: &Path, verbose: bool) -> Result<()> {
 
 fn validate_tex_file(tex_file: &Path) -> Result<()> {
     if !tex_file.exists() {
-        bail!("File not found: {:?}", tex_file);
+        bail!("File not found: {tex_file:?}");
     }
 
     if tex_file
@@ -129,7 +128,7 @@ fn validate_tex_file(tex_file: &Path) -> Result<()> {
         .and_then(|extension| extension.to_str())
         != Some("tex")
     {
-        bail!("File is not a .tex file: {:?}", tex_file);
+        bail!("File is not a .tex file: {tex_file:?}");
     }
 
     Ok(())
@@ -138,7 +137,7 @@ fn validate_tex_file(tex_file: &Path) -> Result<()> {
 fn pdf_next_to_tex_file(tex_file: &Path) -> Result<PathBuf> {
     let file_name = tex_file
         .file_name()
-        .ok_or_else(|| anyhow::anyhow!("Could not determine file name for {:?}", tex_file))?;
+        .ok_or_else(|| anyhow::anyhow!("Could not determine file name for {tex_file:?}"))?;
 
     Ok(tex_file.with_file_name(file_name).with_extension("pdf"))
 }
@@ -146,15 +145,10 @@ fn pdf_next_to_tex_file(tex_file: &Path) -> Result<PathBuf> {
 fn copy_atomically(source: &Path, destination: &Path) -> Result<()> {
     let destination_dir = destination
         .parent()
-        .with_context(|| format!("Could not determine destination dir for {:?}", destination))?;
+        .with_context(|| format!("Could not determine destination dir for {destination:?}"))?;
     let destination_file_name = destination
         .file_name()
-        .with_context(|| {
-            format!(
-                "Could not determine destination file name for {:?}",
-                destination
-            )
-        })?
+        .with_context(|| format!("Could not determine destination file name for {destination:?}"))?
         .to_string_lossy();
     let temp_destination = destination_dir.join(format!(
         ".{}.livetex-export-tmp-{}",
@@ -163,9 +157,9 @@ fn copy_atomically(source: &Path, destination: &Path) -> Result<()> {
     ));
 
     fs::copy(source, &temp_destination)
-        .with_context(|| format!("Could not copy {:?} to {:?}", source, temp_destination))?;
+        .with_context(|| format!("Could not copy {source:?} to {temp_destination:?}"))?;
     fs::rename(&temp_destination, destination)
-        .with_context(|| format!("Could not move {:?} to {:?}", temp_destination, destination))?;
+        .with_context(|| format!("Could not move {temp_destination:?} to {destination:?}"))?;
 
     Ok(())
 }

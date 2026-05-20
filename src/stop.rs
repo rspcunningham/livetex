@@ -11,7 +11,7 @@ pub fn stop(tex_file: Option<PathBuf>, verbose: bool) -> Result<()> {
             let sessions = store.sessions_for_tex_file(&tex_file)?;
 
             if sessions.is_empty() {
-                bail!("No active session found for {:?}", tex_file);
+                bail!("No active session found for {tex_file:?}");
             }
 
             sessions

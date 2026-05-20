@@ -38,7 +38,7 @@ fn select_session_for_logs(
     tex_file: &Path,
 ) -> Result<SessionSummary> {
     if sessions.is_empty() {
-        bail!("No session found for {:?}", tex_file);
+        bail!("No session found for {tex_file:?}");
     }
 
     let active_sessions: Vec<_> = sessions
@@ -51,8 +51,7 @@ fn select_session_for_logs(
         1 => Ok(active_sessions.into_iter().next().unwrap()),
         0 if sessions.len() == 1 => Ok(sessions.remove(0)),
         _ => bail!(
-            "Multiple sessions found for {:?}; stop duplicate sessions before reading logs",
-            tex_file
+            "Multiple sessions found for {tex_file:?}; stop duplicate sessions before reading logs"
         ),
     }
 }

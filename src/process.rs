@@ -17,26 +17,22 @@ pub fn pid_exists(pid: u32) -> bool {
 
 pub fn terminate_process(pid: u32) -> Result<()> {
     if pid > i32::MAX as u32 {
-        bail!("Invalid PID: {}", pid);
+        bail!("Invalid PID: {pid}");
     }
 
     match kill(Pid::from_raw(pid as i32), Signal::SIGTERM) {
         Ok(()) | Err(Errno::ESRCH) => Ok(()),
-        Err(error) => bail!("Could not stop process {}: {}", pid, error),
+        Err(error) => bail!("Could not stop process {pid}: {error}"),
     }
 }
 
 pub fn terminate_process_group(process_group_id: u32) -> Result<()> {
     if process_group_id > i32::MAX as u32 {
-        bail!("Invalid process group ID: {}", process_group_id);
+        bail!("Invalid process group ID: {process_group_id}");
     }
 
     match killpg(Pid::from_raw(process_group_id as i32), Signal::SIGTERM) {
         Ok(()) | Err(Errno::ESRCH) => Ok(()),
-        Err(error) => bail!(
-            "Could not stop process group {}: {}",
-            process_group_id,
-            error
-        ),
+        Err(error) => bail!("Could not stop process group {process_group_id}: {error}"),
     }
 }

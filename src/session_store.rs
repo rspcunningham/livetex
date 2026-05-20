@@ -53,16 +53,16 @@ impl SessionStore {
 
     pub fn start_session(&self, tex_file: PathBuf) -> Result<Session> {
         if !tex_file.exists() {
-            bail!("File not found: {:?}", tex_file);
+            bail!("File not found: {tex_file:?}");
         }
 
         if tex_file.extension().and_then(|e| e.to_str()) != Some("tex") {
-            bail!("File is not a .tex file: {:?}", tex_file);
+            bail!("File is not a .tex file: {tex_file:?}");
         }
 
         let tex_file = tex_file
             .canonicalize()
-            .with_context(|| format!("Could not resolve path: {:?}", tex_file))?;
+            .with_context(|| format!("Could not resolve path: {tex_file:?}"))?;
 
         let id = Uuid::new_v4().to_string();
         let session_dir = self.root_dir.join(&id);
@@ -70,12 +70,12 @@ impl SessionStore {
         let log_path = session_dir.join(LOG_FILE_NAME);
 
         fs::create_dir_all(&session_dir)
-            .with_context(|| format!("Could not create session directory: {:?}", session_dir))?;
+            .with_context(|| format!("Could not create session directory: {session_dir:?}"))?;
         fs::write(
             session_dir.join(TEX_FILE_NAME),
             tex_file.to_string_lossy().as_ref(),
         )
-        .with_context(|| format!("Could not write session metadata: {:?}", session_dir))?;
+        .with_context(|| format!("Could not write session metadata: {session_dir:?}"))?;
 
         Ok(Session {
             id,
@@ -90,7 +90,7 @@ impl SessionStore {
         let latexmk_pid_path = self.latexmk_pid_path(session_id)?;
 
         fs::write(&latexmk_pid_path, latexmk_pid.to_string())
-            .with_context(|| format!("Could not write latexmk PID: {:?}", latexmk_pid_path))?;
+            .with_context(|| format!("Could not write latexmk PID: {latexmk_pid_path:?}"))?;
 
         Ok(())
     }
@@ -99,7 +99,7 @@ impl SessionStore {
         let skim_pid_path = self.skim_pid_path(session_id)?;
 
         fs::write(&skim_pid_path, skim_pid.to_string())
-            .with_context(|| format!("Could not write Skim PID: {:?}", skim_pid_path))?;
+            .with_context(|| format!("Could not write Skim PID: {skim_pid_path:?}"))?;
 
         Ok(())
     }
@@ -153,7 +153,7 @@ impl SessionStore {
     pub fn sessions_for_tex_file(&self, tex_file: &Path) -> Result<Vec<SessionSummary>> {
         let tex_file = tex_file
             .canonicalize()
-            .with_context(|| format!("Could not resolve path: {:?}", tex_file))?;
+            .with_context(|| format!("Could not resolve path: {tex_file:?}"))?;
 
         let sessions = self
             .list_sessions()?
@@ -168,9 +168,8 @@ impl SessionStore {
         let session_dir = self.session_dir(session_id)?;
 
         if session_dir.exists() {
-            fs::remove_dir_all(&session_dir).with_context(|| {
-                format!("Could not remove session directory: {:?}", session_dir)
-            })?;
+            fs::remove_dir_all(&session_dir)
+                .with_context(|| format!("Could not remove session directory: {session_dir:?}"))?;
         }
 
         Ok(())
@@ -195,14 +194,14 @@ fn validate_session_id(session_id: &str) -> Result<()> {
 
     match (components.next(), components.next()) {
         (Some(Component::Normal(_)), None) => Ok(()),
-        _ => bail!("Invalid session id: {:?}", session_id),
+        _ => bail!("Invalid session id: {session_id:?}"),
     }
 }
 
 fn pdf_path_for_tex_file(session_dir: &Path, tex_file: &Path) -> Result<PathBuf> {
     let file_name = tex_file
         .file_name()
-        .ok_or_else(|| anyhow::anyhow!("Could not determine file name for {:?}", tex_file))?;
+        .ok_or_else(|| anyhow::anyhow!("Could not determine file name for {tex_file:?}"))?;
 
     Ok(session_dir.join(file_name).with_extension("pdf"))
 }
