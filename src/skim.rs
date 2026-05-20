@@ -113,6 +113,20 @@ pub fn can_read_documents() -> Result<Option<bool>> {
     open_document_paths().map(|_| Some(true))
 }
 
+pub fn launch() -> Result<()> {
+    let status = Command::new("open")
+        .arg("-gj")
+        .arg("-a")
+        .arg("Skim")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .with_context(|| "Could not run macOS open command")?;
+
+    ensure_success(status, "Could not launch Skim")
+}
+
 pub fn is_running() -> Result<bool> {
     Ok(!pids()?.is_empty())
 }

@@ -143,6 +143,14 @@ fn check_skim_app() -> Check {
 }
 
 fn check_skim_automation() -> Check {
+    if let Err(error) = skim::launch() {
+        return Check::warn(
+            CheckLevel::Recommended,
+            "Skim AppleScript",
+            format!("could not launch Skim: {error:#}"),
+        );
+    }
+
     match skim::can_read_documents() {
         Ok(Some(true)) => Check::pass(CheckLevel::Recommended, "Skim AppleScript", "ready"),
         Ok(Some(false)) => Check::warn(
@@ -153,7 +161,7 @@ fn check_skim_automation() -> Check {
         Ok(None) => Check::warn(
             CheckLevel::Recommended,
             "Skim AppleScript",
-            "not checked because Skim is not running",
+            "not checked because Skim did not launch",
         ),
         Err(error) => Check::warn(
             CheckLevel::Recommended,

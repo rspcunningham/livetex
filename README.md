@@ -42,7 +42,7 @@ livetex export [path_to_latex_file]
 # exports the latex file to pdf, or opens a selector when no path is given
 
 livetex doctor
-# checks prerequisites, Skim defaults, and AppleScript access when Skim is running
+# checks prerequisites, Skim defaults, and Skim AppleScript access
 
 livetex setup
 # sets Skim defaults
