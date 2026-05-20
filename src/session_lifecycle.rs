@@ -1,5 +1,6 @@
 use crate::process::{pid_exists, terminate_process, terminate_process_group};
 use crate::session_store::{SessionStore, SessionSummary};
+use crate::skim;
 use crate::ui;
 use anyhow::Result;
 use std::path::Path;
@@ -29,22 +30,29 @@ pub fn is_active_session(session: &SessionSummary) -> bool {
 
 pub fn stop_session(store: &SessionStore, session: &SessionSummary, verbose: bool) -> Result<()> {
     terminate_compile_process(session, verbose)?;
-
-    if let Some(skim_pid) = session.skim_pid {
-        if pid_exists(skim_pid) {
-            terminate_process(skim_pid)?;
-
-            if verbose {
-                ui::stopped_skim(skim_pid);
-            }
-        }
-    }
+    close_preview_document(session);
 
     store.stop_session(&session.id)?;
 
     ui::stopped_session(session, verbose);
 
     Ok(())
+}
+
+fn close_preview_document(session: &SessionSummary) {
+    let Some(document_path) = session
+        .skim_document_path
+        .as_ref()
+        .or(session.pdf_file.as_ref())
+    else {
+        return;
+    };
+
+    if let Err(error) = skim::close_document(document_path) {
+        ui::warning(format!(
+            "Stopped compiler, but could not close Skim document: {error:#}"
+        ));
+    }
 }
 
 pub fn stop_compile_session(

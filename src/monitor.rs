@@ -8,9 +8,9 @@ use std::time::Duration;
 
 const POLL_INTERVAL: Duration = Duration::from_secs(2);
 
-pub fn monitor(session_id: String, verbose: bool) -> Result<()> {
+pub fn monitor(session_id: String, seen_open: bool, verbose: bool) -> Result<()> {
     let store = SessionStore::livetex_cache();
-    let mut seen_document_open = false;
+    let mut seen_document_open = seen_open;
 
     loop {
         let Some(session) = store.session(&session_id)? else {

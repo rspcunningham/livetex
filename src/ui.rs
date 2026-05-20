@@ -70,10 +70,6 @@ pub fn stopped_latexmk(pid: u32) {
     success(format!("Stopped latexmk process {pid}"));
 }
 
-pub fn stopped_skim(pid: u32) {
-    success(format!("Stopped Skim process {pid}"));
-}
-
 pub fn stopped_session(session: &SessionSummary, verbose: bool) {
     let label = session
         .tex_file

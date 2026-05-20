@@ -77,6 +77,34 @@ pub fn document_is_open(pdf_file: &Path) -> Result<bool> {
         .any(|document_path| document_path.canonicalize().unwrap_or(document_path) == pdf_file))
 }
 
+pub fn close_document(pdf_file: &Path) -> Result<bool> {
+    if !is_running()? {
+        return Ok(false);
+    }
+
+    let target_path = pdf_file.to_string_lossy();
+    let script = format!(
+        r#"
+set targetPath to "{}"
+tell application "Skim"
+    repeat with skimDocument in documents
+        try
+            if POSIX path of (get path of skimDocument) is targetPath then
+                close skimDocument
+                return "closed"
+            end if
+        end try
+    end repeat
+end tell
+return "missing"
+"#,
+        escape_applescript_string(&target_path)
+    );
+    let output = run_osascript(&script)?;
+
+    Ok(output.trim() == "closed")
+}
+
 pub fn can_read_documents() -> Result<Option<bool>> {
     if !is_running()? {
         return Ok(None);
@@ -135,6 +163,10 @@ fn parse_document_paths(output: &str) -> Vec<PathBuf> {
         .collect()
 }
 
+fn escape_applescript_string(value: &str) -> String {
+    value.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
 fn ensure_success(status: ExitStatus, message: &str) -> Result<()> {
     if status.success() {
         Ok(())
@@ -155,6 +187,14 @@ mod tests {
                 PathBuf::from("/tmp/main.pdf"),
                 PathBuf::from("/Users/robin/report.pdf")
             ]
+        );
+    }
+
+    #[test]
+    fn escapes_applescript_strings() {
+        assert_eq!(
+            escape_applescript_string(r#"/tmp/a "quoted" \ file.pdf"#),
+            r#"/tmp/a \"quoted\" \\ file.pdf"#
         );
     }
 }

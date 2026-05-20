@@ -76,11 +76,23 @@ pub fn start(tex_file: PathBuf, verbose: bool) -> Result<()> {
             Ok(preview) => {
                 store.record_skim_document_path(&session.id, &preview.document_path)?;
 
-                if preview.document_open_confirmed == Some(false) {
-                    ui::warning("Opened PDF in Skim, but could not confirm the document window.");
+                match preview.document_open_confirmed {
+                    Some(false) => {
+                        ui::warning(
+                            "Opened PDF in Skim, but could not confirm the document window.",
+                        );
+                    }
+                    None => {
+                        ui::warning(
+                            "Opened PDF in Skim, but AppleScript monitoring could not be confirmed.",
+                        );
+                    }
+                    Some(true) => {}
                 }
 
-                if let Err(error) = spawn_monitor(&session.id) {
+                if let Err(error) =
+                    spawn_monitor(&session.id, preview.document_open_confirmed == Some(true))
+                {
                     ui::warning(format!(
                         "Started compiler, but could not monitor Skim: {error:#}"
                     ));
@@ -116,10 +128,16 @@ pub fn start(tex_file: PathBuf, verbose: bool) -> Result<()> {
     Ok(())
 }
 
-fn spawn_monitor(session_id: &str) -> Result<()> {
-    Command::new(std::env::current_exe().with_context(|| "Could not determine LiveTex binary")?)
-        .arg("monitor")
-        .arg(session_id)
+fn spawn_monitor(session_id: &str, seen_open: bool) -> Result<()> {
+    let live_tex = std::env::current_exe().with_context(|| "Could not determine LiveTex binary")?;
+    let mut command = Command::new(live_tex);
+    command.arg("monitor").arg(session_id);
+
+    if seen_open {
+        command.arg("--seen-open");
+    }
+
+    command
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
