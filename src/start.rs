@@ -73,13 +73,23 @@ pub fn start(tex_file: PathBuf, verbose: bool) -> Result<()> {
 
     let skim_pid = if wait_for_pdf(&session.pdf_file, Duration::from_secs(30)) {
         match skim::open_pdf(&session.pdf_file) {
-            Ok(Some(pid)) => {
-                store.record_skim_pid(&session.id, pid)?;
-                Some(pid)
-            }
-            Ok(None) => {
-                ui::warning("Started compiler, but could not confirm the Skim process.");
-                None
+            Ok(preview) => {
+                store.record_skim_document_path(&session.id, &preview.document_path)?;
+
+                if preview.document_open_confirmed == Some(false) {
+                    ui::warning("Opened PDF in Skim, but could not confirm the document window.");
+                }
+
+                match preview.app_pid {
+                    Some(pid) => {
+                        store.record_skim_pid(&session.id, pid)?;
+                        Some(pid)
+                    }
+                    None => {
+                        ui::warning("Started compiler, but could not confirm the Skim process.");
+                        None
+                    }
+                }
             }
             Err(error) => {
                 ui::warning(format!(

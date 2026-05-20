@@ -222,6 +222,7 @@ Latexmk: All targets (/tmp/session/main.pdf) are up-to-date
             pdf_file: Some(PathBuf::from("/tmp/livetex/main.pdf")),
             latexmk_pid,
             skim_pid: None,
+            skim_document_path: None,
             session_dir: PathBuf::from(format!("/tmp/livetex/{id}")),
             log_path: PathBuf::from(format!("/tmp/livetex/{id}/latexmk.log")),
         }

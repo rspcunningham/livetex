@@ -7,6 +7,7 @@ const TEX_FILE_NAME: &str = "tex_file";
 const LOG_FILE_NAME: &str = "latexmk.log";
 const LATEXMK_PID_FILE_NAME: &str = "latexmk.pid";
 const SKIM_PID_FILE_NAME: &str = "skim.pid";
+const SKIM_DOCUMENT_PATH_FILE_NAME: &str = "skim_document_path";
 
 #[derive(Debug, Clone)]
 pub struct SessionStore {
@@ -29,6 +30,7 @@ pub struct SessionSummary {
     pub pdf_file: Option<PathBuf>,
     pub latexmk_pid: Option<u32>,
     pub skim_pid: Option<u32>,
+    pub skim_document_path: Option<PathBuf>,
     pub session_dir: PathBuf,
     pub log_path: PathBuf,
 }
@@ -104,6 +106,24 @@ impl SessionStore {
         Ok(())
     }
 
+    pub fn record_skim_document_path(
+        &self,
+        session_id: &str,
+        skim_document_path: &Path,
+    ) -> Result<()> {
+        let skim_document_path_path = self.skim_document_path_path(session_id)?;
+
+        fs::write(
+            &skim_document_path_path,
+            skim_document_path.to_string_lossy().as_ref(),
+        )
+        .with_context(|| {
+            format!("Could not write Skim document path: {skim_document_path_path:?}")
+        })?;
+
+        Ok(())
+    }
+
     pub fn list_sessions(&self) -> Result<Vec<SessionSummary>> {
         let mut sessions = Vec::new();
 
@@ -134,6 +154,10 @@ impl SessionStore {
             let skim_pid = fs::read_to_string(session_dir.join(SKIM_PID_FILE_NAME))
                 .ok()
                 .and_then(|pid| pid.trim().parse().ok());
+            let skim_document_path =
+                fs::read_to_string(session_dir.join(SKIM_DOCUMENT_PATH_FILE_NAME))
+                    .ok()
+                    .map(|path| PathBuf::from(path.trim()));
 
             sessions.push(SessionSummary {
                 id,
@@ -141,6 +165,7 @@ impl SessionStore {
                 pdf_file,
                 latexmk_pid,
                 skim_pid,
+                skim_document_path,
                 log_path: session_dir.join(LOG_FILE_NAME),
                 session_dir,
             });
@@ -186,6 +211,12 @@ impl SessionStore {
 
     pub fn skim_pid_path(&self, session_id: &str) -> Result<PathBuf> {
         Ok(self.session_dir(session_id)?.join(SKIM_PID_FILE_NAME))
+    }
+
+    pub fn skim_document_path_path(&self, session_id: &str) -> Result<PathBuf> {
+        Ok(self
+            .session_dir(session_id)?
+            .join(SKIM_DOCUMENT_PATH_FILE_NAME))
     }
 }
 

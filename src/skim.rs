@@ -5,7 +5,14 @@ use std::process::{Command, ExitStatus, Stdio};
 use std::thread;
 use std::time::Duration;
 
-pub fn open_pdf(pdf_file: &Path) -> Result<Option<u32>> {
+#[derive(Debug, Clone)]
+pub struct PreviewHandle {
+    pub app_pid: Option<u32>,
+    pub document_path: PathBuf,
+    pub document_open_confirmed: Option<bool>,
+}
+
+pub fn open_pdf(pdf_file: &Path) -> Result<PreviewHandle> {
     let pids_before = pids()?;
     let status = Command::new("open")
         .arg("-a")
@@ -23,15 +30,19 @@ pub fn open_pdf(pdf_file: &Path) -> Result<Option<u32>> {
 
     let pids_after = pids()?;
     let pids_before: HashSet<u32> = pids_before.into_iter().collect();
-
-    Ok(pids_after
+    let app_pid = pids_after
         .iter()
         .copied()
         .find(|pid| !pids_before.contains(pid))
-        .or_else(|| pids_after.into_iter().max()))
+        .or_else(|| pids_after.into_iter().max());
+
+    Ok(PreviewHandle {
+        app_pid,
+        document_path: pdf_file.to_path_buf(),
+        document_open_confirmed: document_is_open(pdf_file).ok(),
+    })
 }
 
-#[allow(dead_code)]
 pub fn open_document_paths() -> Result<Vec<PathBuf>> {
     let output = run_osascript(
         r#"
@@ -50,6 +61,16 @@ return documentPaths as text
     )?;
 
     Ok(parse_document_paths(&output))
+}
+
+pub fn document_is_open(pdf_file: &Path) -> Result<bool> {
+    let pdf_file = pdf_file
+        .canonicalize()
+        .unwrap_or_else(|_| pdf_file.to_path_buf());
+
+    Ok(open_document_paths()?
+        .into_iter()
+        .any(|document_path| document_path.canonicalize().unwrap_or(document_path) == pdf_file))
 }
 
 fn pids() -> Result<Vec<u32>> {
@@ -71,7 +92,6 @@ fn pids() -> Result<Vec<u32>> {
         .collect())
 }
 
-#[allow(dead_code)]
 fn run_osascript(script: &str) -> Result<String> {
     let output = Command::new("osascript")
         .arg("-e")
@@ -90,7 +110,6 @@ fn run_osascript(script: &str) -> Result<String> {
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
-#[allow(dead_code)]
 fn parse_document_paths(output: &str) -> Vec<PathBuf> {
     output
         .lines()

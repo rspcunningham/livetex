@@ -100,6 +100,7 @@ mod tests {
             pdf_file: None,
             latexmk_pid: Some(1234),
             skim_pid: None,
+            skim_document_path: None,
             session_dir: PathBuf::from("/tmp/livetex/session-id"),
             log_path: PathBuf::from("/tmp/livetex/session-id/latexmk.log"),
         };
@@ -118,6 +119,7 @@ mod tests {
             pdf_file: None,
             latexmk_pid: Some(1234),
             skim_pid: None,
+            skim_document_path: None,
             session_dir: PathBuf::from("/tmp/livetex/session-id"),
             log_path: PathBuf::from("/tmp/livetex/session-id/latexmk.log"),
         };

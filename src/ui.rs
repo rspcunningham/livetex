@@ -147,6 +147,10 @@ pub fn session_summary(session: &SessionSummary) {
 
     detail("latexmk pid", display_pid(session.latexmk_pid));
     detail("skim pid", display_pid(session.skim_pid));
+    match &session.skim_document_path {
+        Some(path) => detail_path("skim doc", path),
+        None => detail("skim doc", "<unknown>"),
+    }
     detail_path("work dir", &session.session_dir);
     detail_path("log", &session.log_path);
 }
