@@ -35,6 +35,9 @@ livetex stop [path_to_latex_file]
 livetex list
 # lists all running live previews
 
+livetex manage
+# opens one workflow for list, export, logs, and stop
+
 livetex export [path_to_latex_file]
 # exports the latex file to pdf, or opens a selector when no path is given
 
@@ -56,4 +59,4 @@ livetex --verbose <command>
 - [ ] use AppleScript to control Skim windows directly
 - [x] installation flow with prerequisite fixing and Skim default setup
 - [x] use the same interactive menu in 'export' as in 'stop'
-- [ ] homogenize the cli into one workflow supporting list, stop, and export -- and maybe start
+- [x] homogenize the cli into one workflow supporting list, stop, and export -- and maybe start

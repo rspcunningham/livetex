@@ -6,6 +6,7 @@ use std::path::PathBuf;
 mod doctor;
 mod export_pdf;
 mod logs;
+mod manage;
 mod process;
 mod session_lifecycle;
 mod session_picker;
@@ -55,6 +56,9 @@ enum Command {
     List,
     #[command(styles = cli_styles())]
     #[command(help_template = HELP_TEMPLATE)]
+    Manage,
+    #[command(styles = cli_styles())]
+    #[command(help_template = HELP_TEMPLATE)]
     Doctor,
     #[command(styles = cli_styles())]
     #[command(help_template = HELP_TEMPLATE)]
@@ -89,6 +93,7 @@ fn run() -> Result<()> {
             let sessions = active_sessions(&store)?;
             ui::session_list(&sessions, verbose);
         }
+        Command::Manage => manage::manage(verbose)?,
         Command::Doctor => doctor::doctor(verbose)?,
         Command::Setup => setup::setup(verbose)?,
         Command::Logs { tex_file, turns } => logs::show(tex_file, turns, verbose)?,

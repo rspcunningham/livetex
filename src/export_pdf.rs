@@ -44,12 +44,16 @@ fn export_selected_session(store: &SessionStore, verbose: bool) -> Result<()> {
         return Ok(());
     };
 
+    export_session(&session, verbose)
+}
+
+pub fn export_session(session: &SessionSummary, verbose: bool) -> Result<()> {
     let tex_file = session
         .tex_file
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("Session {} has no .tex path", session.id))?;
 
-    copy_session_pdf(&session, tex_file, verbose)
+    copy_session_pdf(session, tex_file, verbose)
 }
 
 fn copy_session_pdf(session: &SessionSummary, tex_file: &Path, verbose: bool) -> Result<()> {

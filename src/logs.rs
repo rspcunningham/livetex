@@ -33,6 +33,14 @@ fn print_recent_compile_turns(session: &SessionSummary, turns: usize, verbose: b
     Ok(())
 }
 
+pub fn show_session(session: &SessionSummary, turns: usize, verbose: bool) -> Result<()> {
+    if turns == 0 {
+        bail!("--turns must be greater than zero");
+    }
+
+    print_recent_compile_turns(session, turns, verbose)
+}
+
 fn select_session_for_logs(
     mut sessions: Vec<SessionSummary>,
     tex_file: &Path,
