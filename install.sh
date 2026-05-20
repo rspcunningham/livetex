@@ -72,8 +72,7 @@ warn_missing_deps
 
 cargo install --path "$SCRIPT_DIR" --force
 
-defaults write net.sourceforge.skim-app.skim SKAutoCheckFileUpdate -bool true
-defaults write net.sourceforge.skim-app.skim SKAutoReloadFileUpdate -bool true
+cargo run --manifest-path "$SCRIPT_DIR/Cargo.toml" -- setup
 
 echo "LiveTex installed."
 echo "Run: livetex doctor"
