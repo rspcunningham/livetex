@@ -1,9 +1,10 @@
-use anyhow::{Context, Result, bail};
+use anyhow::Result;
 use clap::builder::styling::{AnsiColor, Styles};
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 mod export_pdf;
+mod logs;
 mod process;
 mod session_lifecycle;
 mod session_picker;
@@ -12,8 +13,8 @@ mod start;
 mod stop;
 mod ui;
 
-use session_lifecycle::{active_sessions, is_active_session};
-use session_store::{SessionStore, SessionSummary};
+use session_lifecycle::active_sessions;
+use session_store::SessionStore;
 
 const HELP_TEMPLATE: &str = "\
 {before-help}{about-with-newline}
@@ -27,6 +28,9 @@ const HELP_TEMPLATE: &str = "\
 #[command(styles = cli_styles())]
 #[command(help_template = HELP_TEMPLATE)]
 struct Cli {
+    #[arg(short, long, global = true)]
+    verbose: bool,
+
     #[command(subcommand)]
     command: Command,
 }
@@ -50,8 +54,8 @@ enum Command {
     Logs {
         tex_file: PathBuf,
 
-        #[arg(short = 'n', long = "lines", default_value_t = 100)]
-        lines: usize,
+        #[arg(short = 't', long = "turns", default_value_t = 1)]
+        turns: usize,
     },
 }
 
@@ -65,29 +69,17 @@ fn main() {
 fn run() -> Result<()> {
     let cli = Cli::parse();
     let store = SessionStore::livetex_cache();
+    let verbose = cli.verbose;
 
     match cli.command {
-        Command::Start { tex_file } => start::start(tex_file)?,
-        Command::Stop { tex_file } => stop::stop(tex_file)?,
-        Command::Export { tex_file } => export_pdf::export(tex_file)?,
+        Command::Start { tex_file } => start::start(tex_file, verbose)?,
+        Command::Stop { tex_file } => stop::stop(tex_file, verbose)?,
+        Command::Export { tex_file } => export_pdf::export(tex_file, verbose)?,
         Command::List => {
             let sessions = active_sessions(&store)?;
-            ui::session_list(&sessions);
+            ui::session_list(&sessions, verbose);
         }
-        Command::Logs { tex_file, lines } => {
-            let sessions = store.sessions_for_tex_file(&tex_file)?;
-            let session = select_session_for_logs(sessions, &tex_file)?;
-            let log_path = session.log_path.clone();
-            let contents = std::fs::read_to_string(&log_path)
-                .with_context(|| format!("could not read log file: {:?}", log_path))?;
-            let log_lines: Vec<&str> = contents.lines().rev().take(lines).collect();
-
-            ui::logs_header(&session, lines);
-
-            for line in log_lines.iter().rev() {
-                println!("{line}");
-            }
-        }
+        Command::Logs { tex_file, turns } => logs::show(tex_file, turns, verbose)?,
     }
 
     Ok(())
@@ -102,28 +94,4 @@ fn cli_styles() -> Styles {
         .error(AnsiColor::Red.on_default().bold())
         .valid(AnsiColor::Green.on_default())
         .invalid(AnsiColor::Yellow.on_default())
-}
-
-fn select_session_for_logs(
-    mut sessions: Vec<SessionSummary>,
-    tex_file: &PathBuf,
-) -> Result<SessionSummary> {
-    if sessions.is_empty() {
-        bail!("No session found for {:?}", tex_file);
-    }
-
-    let active_sessions: Vec<_> = sessions
-        .iter()
-        .filter(|session| is_active_session(session))
-        .cloned()
-        .collect();
-
-    match active_sessions.len() {
-        1 => Ok(active_sessions.into_iter().next().unwrap()),
-        0 if sessions.len() == 1 => Ok(sessions.remove(0)),
-        _ => bail!(
-            "Multiple sessions found for {:?}; stop duplicate sessions before reading logs",
-            tex_file
-        ),
-    }
 }

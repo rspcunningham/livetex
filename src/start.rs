@@ -57,9 +57,9 @@ fn spawn_latexmk(session: &Session) -> Result<u32> {
     Ok(child.id())
 }
 
-pub fn start(tex_file: PathBuf) -> Result<()> {
+pub fn start(tex_file: PathBuf, verbose: bool) -> Result<()> {
     let store = SessionStore::livetex_cache();
-    remove_stale_sessions_or_fail_if_running(&store, &tex_file)?;
+    remove_stale_sessions_or_fail_if_running(&store, &tex_file, verbose)?;
 
     let session = store.start_session(tex_file)?;
     let latexmk_pid = match spawn_latexmk(&session) {
@@ -79,7 +79,7 @@ pub fn start(tex_file: PathBuf) -> Result<()> {
                 Some(pid)
             }
             Ok(None) => {
-                ui::warning("Started latexmk, but could not determine Skim PID.");
+                ui::warning("Started compiler, but could not confirm the Skim process.");
                 None
             }
             Err(error) => {
@@ -90,26 +90,38 @@ pub fn start(tex_file: PathBuf) -> Result<()> {
             }
         }
     } else {
-        ui::warning(format!(
-            "Started latexmk, but {:?} was not created within 30 seconds. See logs for details.",
-            session.pdf_file
-        ));
+        ui::warning(
+            "Started compiler, but the PDF was not created within 30 seconds. Run `livetex logs` for details.",
+        );
         None
     };
 
-    ui::started_session(&session, latexmk_pid, skim_pid);
+    ui::started_session(&session, latexmk_pid, skim_pid, verbose);
 
     Ok(())
 }
 
-fn remove_stale_sessions_or_fail_if_running(store: &SessionStore, tex_file: &Path) -> Result<()> {
+fn remove_stale_sessions_or_fail_if_running(
+    store: &SessionStore,
+    tex_file: &Path,
+    verbose: bool,
+) -> Result<()> {
     for session in store.sessions_for_tex_file(tex_file)? {
         match session.latexmk_pid {
             Some(pid) if pid_exists(pid) => {
+                let tex_file = session.tex_file.unwrap_or_else(|| tex_file.to_path_buf());
+
+                if verbose {
+                    bail!(
+                        "Active session already exists for {:?} with latexmk PID {}",
+                        tex_file,
+                        pid
+                    );
+                }
+
                 bail!(
-                    "Active session already exists for {:?} with latexmk PID {}",
-                    session.tex_file.unwrap_or_else(|| tex_file.to_path_buf()),
-                    pid
+                    "Live preview already running for {}",
+                    ui::path_label(&tex_file)
                 );
             }
             _ => store.stop_session(&session.id)?,

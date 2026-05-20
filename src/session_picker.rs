@@ -4,7 +4,10 @@ use anyhow::{Context, Result, bail};
 use dialoguer::{Select, theme::ColorfulTheme};
 use std::io::IsTerminal;
 
-pub fn select_active_session(store: &SessionStore) -> Result<Option<SessionSummary>> {
+pub fn select_active_session(
+    store: &SessionStore,
+    verbose: bool,
+) -> Result<Option<SessionSummary>> {
     let sessions = active_sessions(store)?;
 
     if sessions.is_empty() {
@@ -13,7 +16,10 @@ pub fn select_active_session(store: &SessionStore) -> Result<Option<SessionSumma
 
     ensure_interactive_terminal()?;
 
-    let labels: Vec<String> = sessions.iter().map(format_session_picker_label).collect();
+    let labels: Vec<String> = sessions
+        .iter()
+        .map(|session| format_session_picker_label(session, verbose))
+        .collect();
     let selected_index = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("Stop which LiveTeX session?")
         .items(&labels)

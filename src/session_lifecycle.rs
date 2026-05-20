@@ -27,7 +27,7 @@ pub fn is_active_session(session: &SessionSummary) -> bool {
     session.latexmk_pid.is_some_and(pid_exists)
 }
 
-pub fn stop_session(store: &SessionStore, session: &SessionSummary) -> Result<()> {
+pub fn stop_session(store: &SessionStore, session: &SessionSummary, verbose: bool) -> Result<()> {
     if let Some(latexmk_pid) = session.latexmk_pid {
         if pid_exists(latexmk_pid) {
             terminate_process_group(latexmk_pid)?;
@@ -36,30 +36,45 @@ pub fn stop_session(store: &SessionStore, session: &SessionSummary) -> Result<()
                 terminate_process(latexmk_pid)?;
             }
 
-            ui::stopped_latexmk(latexmk_pid);
+            if verbose {
+                ui::stopped_latexmk(latexmk_pid);
+            }
         }
     }
 
     if let Some(skim_pid) = session.skim_pid {
         if pid_exists(skim_pid) {
             terminate_process(skim_pid)?;
-            ui::stopped_skim(skim_pid);
+
+            if verbose {
+                ui::stopped_skim(skim_pid);
+            }
         }
     }
 
     store.stop_session(&session.id)?;
 
-    ui::stopped_session(&session.id);
+    ui::stopped_session(session, verbose);
 
     Ok(())
 }
 
-pub fn format_session_picker_label(session: &SessionSummary) -> String {
+pub fn format_session_picker_label(session: &SessionSummary, verbose: bool) -> String {
     let tex_file = session
         .tex_file
         .as_ref()
-        .map(|path| path.display().to_string())
+        .map(|path| {
+            if verbose {
+                path.display().to_string()
+            } else {
+                ui::path_label(path)
+            }
+        })
         .unwrap_or_else(|| "<unknown>".to_string());
+
+    if !verbose {
+        return tex_file;
+    }
 
     let latexmk_pid = session
         .latexmk_pid
@@ -90,8 +105,23 @@ mod tests {
         };
 
         assert_eq!(
-            format_session_picker_label(&session),
+            format_session_picker_label(&session, true),
             "/tmp/project/main.tex  [latexmk pid: 1234, session: session-id]"
         );
+    }
+
+    #[test]
+    fn formats_picker_label_concisely_by_default() {
+        let session = SessionSummary {
+            id: "session-id".to_string(),
+            tex_file: Some(PathBuf::from("/tmp/project/main.tex")),
+            pdf_file: None,
+            latexmk_pid: Some(1234),
+            skim_pid: None,
+            session_dir: PathBuf::from("/tmp/livetex/session-id"),
+            log_path: PathBuf::from("/tmp/livetex/session-id/latexmk.log"),
+        };
+
+        assert_eq!(format_session_picker_label(&session, false), "main.tex");
     }
 }

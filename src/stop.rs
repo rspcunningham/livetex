@@ -4,7 +4,7 @@ use crate::session_store::SessionStore;
 use anyhow::{Result, bail};
 use std::path::PathBuf;
 
-pub fn stop(tex_file: Option<PathBuf>) -> Result<()> {
+pub fn stop(tex_file: Option<PathBuf>, verbose: bool) -> Result<()> {
     let store = SessionStore::livetex_cache();
     let sessions = match tex_file {
         Some(tex_file) => {
@@ -16,14 +16,14 @@ pub fn stop(tex_file: Option<PathBuf>) -> Result<()> {
 
             sessions
         }
-        None => match select_active_session(&store)? {
+        None => match select_active_session(&store, verbose)? {
             Some(session) => vec![session],
             None => return Ok(()),
         },
     };
 
     for session in sessions {
-        stop_session(&store, &session)?;
+        stop_session(&store, &session, verbose)?;
     }
 
     Ok(())

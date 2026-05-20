@@ -6,7 +6,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-pub fn export(tex_file: PathBuf) -> Result<()> {
+pub fn export(tex_file: PathBuf, verbose: bool) -> Result<()> {
     validate_tex_file(&tex_file)?;
 
     let store = SessionStore::livetex_cache();
@@ -17,8 +17,8 @@ pub fn export(tex_file: PathBuf) -> Result<()> {
     let active_sessions = active_sessions_for_tex_file(&store, &canonical_tex_file)?;
 
     match active_sessions.len() {
-        0 => compile_directly(&canonical_tex_file)?,
-        1 => copy_session_pdf(&active_sessions[0], &canonical_tex_file)?,
+        0 => compile_directly(&canonical_tex_file, verbose)?,
+        1 => copy_session_pdf(&active_sessions[0], &canonical_tex_file, verbose)?,
         _ => bail!(
             "Multiple active sessions found for {:?}; stop duplicate sessions before exporting",
             canonical_tex_file
@@ -28,7 +28,7 @@ pub fn export(tex_file: PathBuf) -> Result<()> {
     Ok(())
 }
 
-fn copy_session_pdf(session: &SessionSummary, tex_file: &Path) -> Result<()> {
+fn copy_session_pdf(session: &SessionSummary, tex_file: &Path, verbose: bool) -> Result<()> {
     let source_pdf = session
         .pdf_file
         .as_ref()
@@ -45,12 +45,12 @@ fn copy_session_pdf(session: &SessionSummary, tex_file: &Path) -> Result<()> {
     let destination_pdf = pdf_next_to_tex_file(tex_file)?;
     copy_atomically(source_pdf, &destination_pdf)?;
 
-    ui::exported_pdf(&destination_pdf);
+    ui::exported_pdf(&destination_pdf, verbose);
 
     Ok(())
 }
 
-fn compile_directly(tex_file: &Path) -> Result<()> {
+fn compile_directly(tex_file: &Path, verbose: bool) -> Result<()> {
     let workdir = tex_file
         .parent()
         .with_context(|| format!("Could not determine workdir for {:?}", tex_file))?;
@@ -58,23 +58,38 @@ fn compile_directly(tex_file: &Path) -> Result<()> {
         .file_name()
         .with_context(|| format!("Could not determine file name for {:?}", tex_file))?;
 
-    let status = Command::new("latexmk")
+    let mut command = Command::new("latexmk");
+    command
         .arg("-pdf")
         .arg("-interaction=nonstopmode")
         .arg("-synctex=1")
         .arg(tex_file_name)
         .current_dir(workdir)
-        .stdin(Stdio::null())
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .status()
-        .with_context(|| "Could not start latexmk. Is latexmk installed and on PATH?")?;
+        .stdin(Stdio::null());
 
-    if !status.success() {
-        bail!("latexmk failed with status: {status}");
+    if verbose {
+        let status = command
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .status()
+            .with_context(|| "Could not start latexmk. Is latexmk installed and on PATH?")?;
+
+        if !status.success() {
+            bail!("latexmk failed with status: {status}");
+        }
+    } else {
+        let output = command
+            .output()
+            .with_context(|| "Could not start latexmk. Is latexmk installed and on PATH?")?;
+
+        if !output.status.success() {
+            eprint!("{}", String::from_utf8_lossy(&output.stdout));
+            eprint!("{}", String::from_utf8_lossy(&output.stderr));
+            bail!("latexmk failed with status: {}", output.status);
+        }
     }
 
-    ui::exported_pdf(&pdf_next_to_tex_file(tex_file)?);
+    ui::exported_pdf(&pdf_next_to_tex_file(tex_file)?, verbose);
 
     Ok(())
 }

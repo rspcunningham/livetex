@@ -40,8 +40,20 @@ pub fn no_active_sessions() {
     info("No active sessions.");
 }
 
-pub fn started_session(session: &Session, latexmk_pid: u32, skim_pid: Option<u32>) {
-    success("Started LiveTeX session");
+pub fn started_session(session: &Session, latexmk_pid: u32, skim_pid: Option<u32>, verbose: bool) {
+    success(format!(
+        "Started live preview for {}",
+        path_label(&session.tex_file)
+    ));
+
+    if !verbose {
+        if skim_pid.is_some() {
+            success("Opened PDF in Skim");
+        }
+
+        return;
+    }
+
     detail("session", &session.id);
     detail_path("tex", &session.tex_file);
     detail_path("pdf", &session.pdf_file);
@@ -62,16 +74,29 @@ pub fn stopped_skim(pid: u32) {
     success(format!("Stopped Skim process {pid}"));
 }
 
-pub fn stopped_session(session_id: &str) {
-    success(format!("Stopped session {session_id}"));
+pub fn stopped_session(session: &SessionSummary, verbose: bool) {
+    let label = session
+        .tex_file
+        .as_deref()
+        .map(path_label)
+        .unwrap_or_else(|| "<unknown>".to_string());
+
+    success(format!("Stopped live preview for {label}"));
+
+    if verbose {
+        detail("session", &session.id);
+    }
 }
 
-pub fn exported_pdf(path: &Path) {
-    success("Exported PDF");
-    detail_path("pdf", path);
+pub fn exported_pdf(path: &Path, verbose: bool) {
+    success(format!("Exported PDF to {}", path_label(path)));
+
+    if verbose {
+        detail_path("pdf", path);
+    }
 }
 
-pub fn session_list(sessions: &[SessionSummary]) {
+pub fn session_list(sessions: &[SessionSummary], verbose: bool) {
     if sessions.is_empty() {
         no_active_sessions();
         return;
@@ -81,16 +106,30 @@ pub fn session_list(sessions: &[SessionSummary]) {
         "{} active {}",
         sessions.len(),
         if sessions.len() == 1 {
-            "session"
+            "preview"
         } else {
-            "sessions"
+            "previews"
         }
     ));
 
     for session in sessions {
-        println!();
-        session_summary(session);
+        if verbose {
+            println!();
+            session_summary(session);
+        } else {
+            session_summary_concise(session);
+        }
     }
+}
+
+pub fn session_summary_concise(session: &SessionSummary) {
+    let label = session
+        .tex_file
+        .as_deref()
+        .map(path_label)
+        .unwrap_or_else(|| "<unknown>".to_string());
+
+    println!("{} {}", style("›").yellow(), style(label).bold());
 }
 
 pub fn session_summary(session: &SessionSummary) {
@@ -112,15 +151,32 @@ pub fn session_summary(session: &SessionSummary) {
     detail_path("log", &session.log_path);
 }
 
-pub fn logs_header(session: &SessionSummary, lines: usize) {
-    info("LiveTeX logs");
+pub fn logs_header(session: &SessionSummary, turns: usize, verbose: bool) {
+    let label = session
+        .tex_file
+        .as_deref()
+        .map(path_label)
+        .unwrap_or_else(|| "<unknown>".to_string());
+
+    let turn_label = if turns == 1 {
+        "last compile".to_string()
+    } else {
+        format!("last {turns} compiles")
+    };
+
+    info(format!("Logs for {label}, {turn_label}"));
+
+    if !verbose {
+        println!();
+        return;
+    }
 
     if let Some(tex_file) = &session.tex_file {
         detail_path("tex", tex_file);
     }
 
     detail_path("log", &session.log_path);
-    detail("lines", lines);
+    detail("turns", turns);
     println!();
 }
 
@@ -131,4 +187,10 @@ fn display_pid(pid: Option<u32>) -> String {
 
 fn dim(value: impl Display) -> console::StyledObject<String> {
     Style::new().black().bright().apply_to(value.to_string())
+}
+
+pub fn path_label(path: &Path) -> String {
+    path.file_name()
+        .map(|file_name| file_name.to_string_lossy().into_owned())
+        .unwrap_or_else(|| path.display().to_string())
 }
