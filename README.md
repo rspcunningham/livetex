@@ -59,4 +59,4 @@ livetex --verbose <command>
 - [ ] use AppleScript to control Skim windows directly
 - [x] installation flow with prerequisite fixing and Skim default setup
 - [x] use the same interactive menu in 'export' as in 'stop'
-- [x] homogenize the cli into one workflow supporting list, stop, and export -- and maybe start
+- [x] homogenize the cli into one workflow supporting list, stop, export, and logs

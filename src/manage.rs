@@ -27,7 +27,7 @@ pub fn manage(verbose: bool) -> Result<()> {
         &store,
         verbose,
         "Manage which LiveTeX session?",
-        "use `livetex list`, `livetex export <path_to_latex_file>`, or `livetex stop <path_to_latex_file>`",
+        "use `livetex list`, `livetex export <path_to_latex_file>`, `livetex logs <path_to_latex_file>`, or `livetex stop <path_to_latex_file>`",
     )?
     else {
         return Ok(());
