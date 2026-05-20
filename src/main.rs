@@ -10,6 +10,7 @@ mod process;
 mod session_lifecycle;
 mod session_picker;
 mod session_store;
+mod skim;
 mod start;
 mod stop;
 mod ui;

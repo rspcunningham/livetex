@@ -1,12 +1,11 @@
 use crate::process::pid_exists;
 use crate::session_store::{Session, SessionStore};
+use crate::skim;
 use crate::ui;
 use anyhow::{Context, Result, bail};
-use std::collections::HashSet;
 use std::fs::OpenOptions;
 use std::path::Path;
 use std::path::PathBuf;
-use std::process::ExitStatus;
 use std::process::{Command, Stdio};
 use std::thread;
 use std::time::Duration;
@@ -73,7 +72,7 @@ pub fn start(tex_file: PathBuf, verbose: bool) -> Result<()> {
     store.record_latexmk_pid(&session.id, latexmk_pid)?;
 
     let skim_pid = if wait_for_pdf(&session.pdf_file, Duration::from_secs(30)) {
-        match open_with_skim(&session.pdf_file) {
+        match skim::open_pdf(&session.pdf_file) {
             Ok(Some(pid)) => {
                 store.record_skim_pid(&session.id, pid)?;
                 Some(pid)
@@ -145,57 +144,4 @@ fn wait_for_pdf(pdf_file: &Path, timeout: Duration) -> bool {
     }
 
     pdf_file.exists()
-}
-
-fn open_with_skim(pdf_file: &Path) -> Result<Option<u32>> {
-    let pids_before = skim_pids()?;
-    let status = Command::new("open")
-        .arg("-a")
-        .arg("Skim")
-        .arg(pdf_file)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .with_context(|| "Could not run macOS open command")?;
-
-    ensure_success(status, "Could not open PDF with Skim")?;
-
-    thread::sleep(Duration::from_millis(500));
-
-    let pids_after = skim_pids()?;
-    let pids_before: HashSet<u32> = pids_before.into_iter().collect();
-
-    Ok(pids_after
-        .iter()
-        .copied()
-        .find(|pid| !pids_before.contains(pid))
-        .or_else(|| pids_after.into_iter().max()))
-}
-
-fn skim_pids() -> Result<Vec<u32>> {
-    let output = Command::new("pgrep")
-        .arg("-x")
-        .arg("Skim")
-        .output()
-        .with_context(|| "Could not run pgrep")?;
-
-    if !output.status.success() {
-        return Ok(Vec::new());
-    }
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-
-    Ok(stdout
-        .lines()
-        .filter_map(|line| line.trim().parse().ok())
-        .collect())
-}
-
-fn ensure_success(status: ExitStatus, message: &str) -> Result<()> {
-    if status.success() {
-        Ok(())
-    } else {
-        bail!("{message}: {status}")
-    }
 }
