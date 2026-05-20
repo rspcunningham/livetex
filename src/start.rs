@@ -4,6 +4,7 @@ use crate::skim;
 use crate::ui;
 use anyhow::{Context, Result, bail};
 use std::fs::OpenOptions;
+use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -178,7 +179,7 @@ fn wait_for_pdf(pdf_file: &Path, timeout: Duration) -> bool {
     let mut elapsed = Duration::ZERO;
 
     while elapsed < timeout {
-        if pdf_file.exists() {
+        if pdf_is_ready(pdf_file) {
             return true;
         }
 
@@ -186,5 +187,53 @@ fn wait_for_pdf(pdf_file: &Path, timeout: Duration) -> bool {
         elapsed += interval;
     }
 
-    pdf_file.exists()
+    pdf_is_ready(pdf_file)
+}
+
+fn pdf_is_ready(pdf_file: &Path) -> bool {
+    let Ok(mut file) = std::fs::File::open(pdf_file) else {
+        return false;
+    };
+    let Ok(metadata) = file.metadata() else {
+        return false;
+    };
+    let len = metadata.len();
+
+    if len == 0 {
+        return false;
+    }
+
+    let tail_len = len.min(2048);
+
+    if file.seek(SeekFrom::End(-(tail_len as i64))).is_err() {
+        return false;
+    }
+
+    let mut tail = Vec::with_capacity(tail_len as usize);
+    if file.read_to_end(&mut tail).is_err() {
+        return false;
+    }
+
+    tail.windows(b"%%EOF".len())
+        .any(|window| window == b"%%EOF")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn pdf_is_not_ready_until_eof_marker_exists() {
+        let path =
+            std::env::temp_dir().join(format!("livetex-incomplete-pdf-{}.pdf", std::process::id()));
+
+        fs::write(&path, b"%PDF-1.7\n1 0 obj\n").unwrap();
+        assert!(!pdf_is_ready(&path));
+
+        fs::write(&path, b"%PDF-1.7\n1 0 obj\ntrailer\n%%EOF\n").unwrap();
+        assert!(pdf_is_ready(&path));
+
+        let _ = fs::remove_file(path);
+    }
 }

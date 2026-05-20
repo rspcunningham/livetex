@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 mod doctor;
 mod export_pdf;
+mod finder_service;
 mod logs;
 mod manage;
 mod monitor;

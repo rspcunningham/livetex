@@ -1,3 +1,4 @@
+use crate::finder_service;
 use crate::session_store::SessionStore;
 use crate::skim;
 use crate::skim_defaults;
@@ -94,6 +95,7 @@ fn run_checks() -> Vec<Check> {
         check_skim_automation(),
         check_skim_default(skim_defaults::AUTO_CHECK_KEY),
         check_skim_default(skim_defaults::AUTO_RELOAD_KEY),
+        check_finder_service(),
         check_cache_dir(),
     ]
 }
@@ -185,6 +187,38 @@ fn check_skim_default(key: &'static str) -> Check {
             CheckLevel::Recommended,
             key,
             format!("could not run defaults: {error}"),
+        ),
+    }
+}
+
+fn check_finder_service() -> Check {
+    match finder_service::status() {
+        Ok(status) if status.current => Check::pass(
+            CheckLevel::Recommended,
+            "Finder Quick Action",
+            status.path.display().to_string(),
+        ),
+        Ok(status) if status.installed => Check::warn(
+            CheckLevel::Recommended,
+            "Finder Quick Action",
+            format!(
+                "installed at {}, but it does not point at {}. Run `livetex setup`.",
+                status.path.display(),
+                status.expected_binary.display()
+            ),
+        ),
+        Ok(status) => Check::warn(
+            CheckLevel::Recommended,
+            "Finder Quick Action",
+            format!(
+                "not installed. Run `livetex setup`; expected {}",
+                status.path.display()
+            ),
+        ),
+        Err(error) => Check::warn(
+            CheckLevel::Recommended,
+            "Finder Quick Action",
+            format!("{error:#}"),
         ),
     }
 }

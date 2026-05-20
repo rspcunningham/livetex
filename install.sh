@@ -72,7 +72,7 @@ warn_missing_deps
 
 cargo install --path "$SCRIPT_DIR" --force
 
-cargo run --manifest-path "$SCRIPT_DIR/Cargo.toml" -- setup
+"${CARGO_HOME:-$HOME/.cargo}/bin/livetex" setup
 
 echo "LiveTex installed."
 echo "Run: livetex doctor"
