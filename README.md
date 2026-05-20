@@ -36,8 +36,11 @@ livetex stop [path_to_latex_file]
 livetex list
 # lists all running live previews
 
-livetex export <path_to_latex_file>
-# exports the latex file to pdf in the same directory as the .tex
+livetex export [path_to_latex_file]
+# exports the latex file to pdf, or opens a selector when no path is given
+
+livetex doctor
+# checks prerequisites and Skim defaults
 
 livetex --verbose <command>
 # shows session IDs, process IDs, cache directories, PDF paths, and log paths
@@ -49,5 +52,6 @@ livetex --verbose <command>
 - [ ] right click on file to start a new preview session with it
 - [ ] kill the compile when Skim window is closed
 - [ ] use AppleScript to control Skim windows directly
-- [ ] installation flow with prerequisites checking and Skim default setup
-- [ ] use the same interactive menu in 'export' as in 'stop' -- possibly integrate stop, export, and list into a single command
+- [ ] installation flow with prerequisite fixing and Skim default setup
+- [x] use the same interactive menu in 'export' as in 'stop'
+- [ ] homogenize the cli into one workflow supporting list, stop, and export -- and maybe start
