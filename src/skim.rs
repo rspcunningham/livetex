@@ -77,7 +77,15 @@ pub fn document_is_open(pdf_file: &Path) -> Result<bool> {
         .any(|document_path| document_path.canonicalize().unwrap_or(document_path) == pdf_file))
 }
 
-fn is_running() -> Result<bool> {
+pub fn can_read_documents() -> Result<Option<bool>> {
+    if !is_running()? {
+        return Ok(None);
+    }
+
+    open_document_paths().map(|_| Some(true))
+}
+
+pub fn is_running() -> Result<bool> {
     Ok(!pids()?.is_empty())
 }
 

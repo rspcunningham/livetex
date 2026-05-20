@@ -10,6 +10,7 @@ const POLL_INTERVAL: Duration = Duration::from_secs(2);
 
 pub fn monitor(session_id: String, verbose: bool) -> Result<()> {
     let store = SessionStore::livetex_cache();
+    let mut seen_document_open = false;
 
     loop {
         let Some(session) = store.session(&session_id)? else {
@@ -23,11 +24,14 @@ pub fn monitor(session_id: String, verbose: bool) -> Result<()> {
 
         if let Some(document_path) = preview_document_path(&session) {
             match skim::document_is_open(&document_path) {
-                Ok(true) => {}
-                Ok(false) => {
+                Ok(true) => {
+                    seen_document_open = true;
+                }
+                Ok(false) if seen_document_open => {
                     stop_compile_session(&store, &session, verbose)?;
                     return Ok(());
                 }
+                Ok(false) => {}
                 Err(_) => {}
             }
         }

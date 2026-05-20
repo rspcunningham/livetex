@@ -1,4 +1,5 @@
 use crate::session_store::SessionStore;
+use crate::skim;
 use crate::skim_defaults;
 use crate::ui;
 use anyhow::{Context, Result, bail};
@@ -90,6 +91,7 @@ fn run_checks() -> Vec<Check> {
         check_command("defaults", CheckLevel::Recommended),
         check_command("osascript", CheckLevel::Recommended),
         check_skim_app(),
+        check_skim_automation(),
         check_skim_default(skim_defaults::AUTO_CHECK_KEY),
         check_skim_default(skim_defaults::AUTO_RELOAD_KEY),
         check_cache_dir(),
@@ -136,6 +138,27 @@ fn check_skim_app() -> Check {
             CheckLevel::Required,
             "Skim",
             format!("could not run open: {error}"),
+        ),
+    }
+}
+
+fn check_skim_automation() -> Check {
+    match skim::can_read_documents() {
+        Ok(Some(true)) => Check::pass(CheckLevel::Recommended, "Skim AppleScript", "ready"),
+        Ok(Some(false)) => Check::warn(
+            CheckLevel::Recommended,
+            "Skim AppleScript",
+            "could not read Skim documents",
+        ),
+        Ok(None) => Check::warn(
+            CheckLevel::Recommended,
+            "Skim AppleScript",
+            "not checked because Skim is not running",
+        ),
+        Err(error) => Check::warn(
+            CheckLevel::Recommended,
+            "Skim AppleScript",
+            format!("{error:#}"),
         ),
     }
 }
