@@ -9,7 +9,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 #[cfg(unix)]
 use std::os::unix::process::CommandExt;
@@ -176,46 +176,58 @@ fn remove_stale_sessions_or_fail_if_running(
 
 fn wait_for_pdf(pdf_file: &Path, timeout: Duration) -> bool {
     let interval = Duration::from_millis(250);
-    let mut elapsed = Duration::ZERO;
+    let deadline = Instant::now() + timeout;
+    let mut last_ready_len = None;
 
-    while elapsed < timeout {
-        if pdf_is_ready(pdf_file) {
-            return true;
+    loop {
+        match ready_pdf_len(pdf_file) {
+            Some(len) if last_ready_len == Some(len) => {
+                return true;
+            }
+            Some(len) => {
+                last_ready_len = Some(len);
+            }
+            None => {
+                last_ready_len = None;
+            }
         }
 
-        thread::sleep(interval);
-        elapsed += interval;
-    }
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return false;
+        }
 
-    pdf_is_ready(pdf_file)
+        thread::sleep(remaining.min(interval));
+    }
 }
 
-fn pdf_is_ready(pdf_file: &Path) -> bool {
+fn ready_pdf_len(pdf_file: &Path) -> Option<u64> {
     let Ok(mut file) = std::fs::File::open(pdf_file) else {
-        return false;
+        return None;
     };
     let Ok(metadata) = file.metadata() else {
-        return false;
+        return None;
     };
     let len = metadata.len();
 
     if len == 0 {
-        return false;
+        return None;
     }
 
     let tail_len = len.min(2048);
 
     if file.seek(SeekFrom::End(-(tail_len as i64))).is_err() {
-        return false;
+        return None;
     }
 
     let mut tail = Vec::with_capacity(tail_len as usize);
     if file.read_to_end(&mut tail).is_err() {
-        return false;
+        return None;
     }
 
     tail.windows(b"%%EOF".len())
         .any(|window| window == b"%%EOF")
+        .then_some(len)
 }
 
 #[cfg(test)]
@@ -229,10 +241,10 @@ mod tests {
             std::env::temp_dir().join(format!("livetex-incomplete-pdf-{}.pdf", std::process::id()));
 
         fs::write(&path, b"%PDF-1.7\n1 0 obj\n").unwrap();
-        assert!(!pdf_is_ready(&path));
+        assert!(ready_pdf_len(&path).is_none());
 
         fs::write(&path, b"%PDF-1.7\n1 0 obj\ntrailer\n%%EOF\n").unwrap();
-        assert!(pdf_is_ready(&path));
+        assert!(ready_pdf_len(&path).is_some());
 
         let _ = fs::remove_file(path);
     }

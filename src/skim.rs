@@ -3,7 +3,10 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
+
+const OPEN_CONFIRM_TIMEOUT: Duration = Duration::from_secs(8);
+const OPEN_CONFIRM_INTERVAL: Duration = Duration::from_millis(250);
 
 #[derive(Debug, Clone)]
 pub struct PreviewHandle {
@@ -26,20 +29,12 @@ pub fn open_pdf(pdf_file: &Path) -> Result<PreviewHandle> {
 
     ensure_success(status, "Could not open PDF with Skim")?;
 
-    thread::sleep(Duration::from_millis(500));
-
-    let pids_after = pids()?;
-    let pids_before: HashSet<u32> = pids_before.into_iter().collect();
-    let app_pid = pids_after
-        .iter()
-        .copied()
-        .find(|pid| !pids_before.contains(pid))
-        .or_else(|| pids_after.into_iter().max());
+    let app_pid = wait_for_app_pid(&pids_before, OPEN_CONFIRM_TIMEOUT)?;
 
     Ok(PreviewHandle {
         app_pid,
         document_path: pdf_file.to_path_buf(),
-        document_open_confirmed: document_is_open(pdf_file).ok(),
+        document_open_confirmed: wait_for_document_open(pdf_file, OPEN_CONFIRM_TIMEOUT),
     })
 }
 
@@ -150,6 +145,54 @@ fn pids() -> Result<Vec<u32>> {
         .collect())
 }
 
+fn wait_for_app_pid(pids_before: &[u32], timeout: Duration) -> Result<Option<u32>> {
+    let pids_before: HashSet<u32> = pids_before.iter().copied().collect();
+    let deadline = Instant::now() + timeout;
+
+    loop {
+        let pids_after = pids()?;
+
+        if let Some(pid) = preview_pid(&pids_before, &pids_after) {
+            return Ok(Some(pid));
+        }
+
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return Ok(None);
+        }
+
+        thread::sleep(remaining.min(OPEN_CONFIRM_INTERVAL));
+    }
+}
+
+fn preview_pid(pids_before: &HashSet<u32>, pids_after: &[u32]) -> Option<u32> {
+    pids_after
+        .iter()
+        .copied()
+        .find(|pid| !pids_before.contains(pid))
+        .or_else(|| pids_after.iter().copied().max())
+}
+
+fn wait_for_document_open(pdf_file: &Path, timeout: Duration) -> Option<bool> {
+    let deadline = Instant::now() + timeout;
+    let mut apple_script_available = false;
+
+    loop {
+        match document_is_open(pdf_file) {
+            Ok(true) => return Some(true),
+            Ok(false) => apple_script_available = true,
+            Err(_) => {}
+        }
+
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return apple_script_available.then_some(false);
+        }
+
+        thread::sleep(remaining.min(OPEN_CONFIRM_INTERVAL));
+    }
+}
+
 fn run_osascript(script: &str) -> Result<String> {
     let output = Command::new("osascript")
         .arg("-e")
@@ -210,5 +253,21 @@ mod tests {
             escape_applescript_string(r#"/tmp/a "quoted" \ file.pdf"#),
             r#"/tmp/a \"quoted\" \\ file.pdf"#
         );
+    }
+
+    #[test]
+    fn preview_pid_prefers_new_skim_process() {
+        let pids_before = HashSet::from([10, 20]);
+        let pids_after = [10, 20, 30];
+
+        assert_eq!(preview_pid(&pids_before, &pids_after), Some(30));
+    }
+
+    #[test]
+    fn preview_pid_falls_back_to_existing_skim_process() {
+        let pids_before = HashSet::from([10, 20]);
+        let pids_after = [10, 20];
+
+        assert_eq!(preview_pid(&pids_before, &pids_after), Some(20));
     }
 }
