@@ -20,8 +20,11 @@ cd livetex
 ## Usage
 
 ```
-livetex start <path_to_latex_file>
+livetex <path_to_latex_file>
 # starts a live preview of the latex file
+
+livetex start <path_to_latex_file>
+# also starts a live preview, kept for explicit subcommand usage
 
 livetex logs <path_to_latex_file>
 # shows logs for the most recent compile turn
@@ -47,7 +50,7 @@ livetex doctor
 livetex setup
 # sets Skim defaults and installs the Finder Quick Action
 
-livetex --verbose <command>
+livetex --verbose <path_to_latex_file|command>
 # shows session IDs, process IDs, cache directories, PDF paths, and log paths
 ```
 

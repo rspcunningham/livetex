@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::builder::styling::{AnsiColor, Styles};
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
 use std::path::PathBuf;
 
 mod doctor;
@@ -34,12 +34,20 @@ const HELP_TEMPLATE: &str = "\
 #[command(about = "Live LaTeX compiler with elegant PDF serving")]
 #[command(styles = cli_styles())]
 #[command(help_template = HELP_TEMPLATE)]
+#[command(arg_required_else_help = true)]
+#[command(override_usage = "livetex [OPTIONS] <TEX_FILE>\n       livetex [OPTIONS] <COMMAND>")]
 struct Cli {
     #[arg(short, long, global = true)]
     verbose: bool,
 
     #[command(subcommand)]
-    command: Command,
+    command: Option<Command>,
+
+    #[arg(
+        value_name = "TEX_FILE",
+        help = "Start a live preview for this .tex file"
+    )]
+    tex_file: Option<PathBuf>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -96,25 +104,57 @@ fn run() -> Result<()> {
     let store = SessionStore::livetex_cache();
     let verbose = cli.verbose;
 
-    match cli.command {
-        Command::Start { tex_file } => start::start(tex_file, verbose)?,
-        Command::Stop { tex_file } => stop::stop(tex_file, verbose)?,
-        Command::Export { tex_file } => export_pdf::export(tex_file, verbose)?,
-        Command::List => {
+    match (cli.command, cli.tex_file) {
+        (Some(Command::Start { tex_file }), None) | (None, Some(tex_file)) => {
+            start::start(tex_file, verbose)?
+        }
+        (Some(Command::Stop { tex_file }), None) => stop::stop(tex_file, verbose)?,
+        (Some(Command::Export { tex_file }), None) => export_pdf::export(tex_file, verbose)?,
+        (Some(Command::List), None) => {
             let sessions = active_sessions(&store)?;
             ui::session_list(&sessions, verbose);
         }
-        Command::Manage => manage::manage(verbose)?,
-        Command::Doctor => doctor::doctor(verbose)?,
-        Command::Setup => setup::setup(verbose)?,
-        Command::Logs { tex_file, turns } => logs::show(tex_file, turns, verbose)?,
-        Command::Monitor {
-            session_id,
-            seen_open,
-        } => monitor::monitor(session_id, seen_open, verbose)?,
+        (Some(Command::Manage), None) => manage::manage(verbose)?,
+        (Some(Command::Doctor), None) => doctor::doctor(verbose)?,
+        (Some(Command::Setup), None) => setup::setup(verbose)?,
+        (Some(Command::Logs { tex_file, turns }), None) => logs::show(tex_file, turns, verbose)?,
+        (
+            Some(Command::Monitor {
+                session_id,
+                seen_open,
+            }),
+            None,
+        ) => monitor::monitor(session_id, seen_open, verbose)?,
+        (None, None) => {
+            Cli::command().print_help()?;
+            println!();
+        }
+        (Some(command), Some(tex_file)) => {
+            anyhow::bail!(
+                "Cannot combine `{}` with top-level TEX_FILE `{}`",
+                command.name(),
+                ui::path_label(&tex_file)
+            );
+        }
     }
 
     Ok(())
+}
+
+impl Command {
+    fn name(&self) -> &'static str {
+        match self {
+            Self::Start { .. } => "start",
+            Self::Stop { .. } => "stop",
+            Self::Export { .. } => "export",
+            Self::List => "list",
+            Self::Manage => "manage",
+            Self::Doctor => "doctor",
+            Self::Setup => "setup",
+            Self::Logs { .. } => "logs",
+            Self::Monitor { .. } => "monitor",
+        }
+    }
 }
 
 fn cli_styles() -> Styles {
@@ -126,4 +166,40 @@ fn cli_styles() -> Styles {
         .error(AnsiColor::Red.on_default().bold())
         .valid(AnsiColor::Green.on_default())
         .invalid(AnsiColor::Yellow.on_default())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_top_level_tex_file_as_start_shortcut() {
+        let cli = Cli::try_parse_from(["livetex", "sample.tex"]).unwrap();
+
+        assert!(cli.command.is_none());
+        assert_eq!(cli.tex_file, Some(PathBuf::from("sample.tex")));
+    }
+
+    #[test]
+    fn still_parses_explicit_start_subcommand() {
+        let cli = Cli::try_parse_from(["livetex", "start", "sample.tex"]).unwrap();
+
+        assert!(matches!(cli.command, Some(Command::Start { .. })));
+        assert!(cli.tex_file.is_none());
+    }
+
+    #[test]
+    fn still_parses_other_subcommands() {
+        let cli = Cli::try_parse_from(["livetex", "logs", "sample.tex", "--turns", "2"]).unwrap();
+
+        match cli.command {
+            Some(Command::Logs { tex_file, turns }) => {
+                assert_eq!(tex_file, PathBuf::from("sample.tex"));
+                assert_eq!(turns, 2);
+            }
+            command => panic!("expected logs command, got {command:?}"),
+        }
+
+        assert!(cli.tex_file.is_none());
+    }
 }
